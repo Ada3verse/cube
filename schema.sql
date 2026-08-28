@@ -15,16 +15,16 @@ CREATE TABLE User (
     UNIQUE (grade, class_no)                       -- 한 반에 담임은 한 명 (NULL끼리는 중복 허용됨)
 );
 
--- Event: 일정 (회의/행사/제출마감)
+-- Event: 일정 (회의/행사/제출마감/개인일정)
 CREATE TABLE Event (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     title         TEXT NOT NULL,
     description   TEXT,
-    type          TEXT NOT NULL CHECK (type IN ('meeting', 'activity', 'deadline')),
+    type          TEXT NOT NULL CHECK (type IN ('meeting', 'activity', 'deadline', 'personal')),
     start_at      TEXT NOT NULL,                 -- ISO 8601
     end_at        TEXT,
     location      TEXT,
-    target_group  TEXT,                          -- NULL = 전체 공개
+    target_group  TEXT,                          -- NULL = 전체 공개 (personal 타입은 항상 NULL, 본인만 조회)
     author_id     INTEGER NOT NULL REFERENCES User(id),
     is_cancelled  INTEGER NOT NULL DEFAULT 0,     -- soft delete
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
@@ -96,6 +96,17 @@ CREATE TABLE Memo (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- AcademicSchedule: 학사일정 (학교 전체 기준 캘린더, 방학/시험기간/공휴일 등)
+CREATE TABLE AcademicSchedule (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,                      -- 예: "여름방학", "1학기 기말고사"
+    category    TEXT NOT NULL CHECK (category IN ('학기', '방학', '시험기간', '공휴일', '재량휴업일', '기타')),
+    start_date  TEXT NOT NULL,                       -- YYYY-MM-DD
+    end_date    TEXT,                                -- 기간이면 종료일, 하루짜리면 NULL
+    created_by  INTEGER NOT NULL REFERENCES User(id),
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Message: 쪽지 본문 (보낸 사람 기준 1건, 여러 명에게 동시 발송 가능)
 CREATE TABLE Message (
     id                   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,3 +147,4 @@ CREATE INDEX idx_group_member_user  ON Group_Member(user_id);
 CREATE INDEX idx_memo_user_date     ON Memo(user_id, date);
 CREATE INDEX idx_message_recipient_user ON Message_Recipient(user_id);
 CREATE INDEX idx_attachment_target  ON Attachment(target_type, target_id);
+CREATE INDEX idx_academic_schedule_date ON AcademicSchedule(start_date);

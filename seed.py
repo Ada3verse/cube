@@ -27,7 +27,7 @@ conn = sqlite3.connect("database.db")
 cur = conn.cursor()
 
 # 기존 데이터 초기화 (재실행 대비)
-for table in ["Attachment", "Message_Recipient", "Message", "Memo", "Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
+for table in ["AcademicSchedule", "Attachment", "Message_Recipient", "Message", "Memo", "Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
     cur.execute(f"DELETE FROM {table}")
     cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
 
@@ -87,6 +87,10 @@ events = [
     ("추석 연휴 전 안전교육", "meeting", "2026-09-22T08:30:00", "2026-09-22T09:00:00", "강당", None),
     ("2학기 동아리 발표회", "activity", "2026-09-25T13:00:00", "2026-09-25T16:00:00", "강당", None),
     ("성적 입력 마감", "deadline", "2026-09-30T18:00:00", None, None, None),
+    # 개인일정 (본인만 조회, 알림 발송 없음)
+    ("치과 예약", "personal", "2026-08-21T15:00:00", "2026-08-21T16:00:00", "서울치과", None),
+    ("자녀 학부모 상담", "personal", "2026-09-03T10:00:00", "2026-09-03T11:00:00", None, None),
+    ("연차 - 개인 사유", "personal", "2026-09-17T00:00:00", "2026-09-17T00:00:00", None, None),
 ]
 
 event_ids = []
@@ -99,8 +103,10 @@ for title, type_, start_at, end_at, location, target_group in events:
     )
     event_ids.append((cur.lastrowid, type_, target_group))
 
-# ── Notification: 대상 그룹에 맞는 교사들에게 알림 생성 ─────────
+# ── Notification: 대상 그룹에 맞는 교사들에게 알림 생성 (개인일정 제외) ─
 for event_id, type_, target_group in event_ids:
+    if type_ == "personal":
+        continue
     recipients = list(teacher_ids)
     if target_group:
         recipients = [uid for uid in recipients if True]  # group_name 매칭은 조회 시 처리, 시드는 전체 대상 유지
@@ -226,6 +232,20 @@ cur.execute(
     ("교과서_반납_안내.pdf", "uploads/announcement/1/교과서_반납_안내.pdf", 245000, admin_id, "announcement", first_announcement_id),
 )
 
+# ── AcademicSchedule: 학사일정 (학교 전체 기준 캘린더) ─────────
+academic_schedule = [
+    ("2학기 개학", "학기", "2026-08-18", None),
+    ("2학기 중간고사", "시험기간", "2026-09-08", "2026-09-10"),
+    ("재량휴업일", "재량휴업일", "2026-09-21", None),
+    ("추석 연휴", "공휴일", "2026-09-24", "2026-09-27"),
+]
+
+for title, category, start_date, end_date in academic_schedule:
+    cur.execute(
+        "INSERT INTO AcademicSchedule (title, category, start_date, end_date, created_by) VALUES (?, ?, ?, ?, ?)",
+        (title, category, start_date, end_date, admin_id),
+    )
+
 conn.commit()
 
 cur.execute("SELECT COUNT(*) FROM User")
@@ -250,5 +270,7 @@ cur.execute("SELECT COUNT(*) FROM Message_Recipient")
 print("Message_Recipient:", cur.fetchone()[0])
 cur.execute("SELECT COUNT(*) FROM Attachment")
 print("Attachment:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM AcademicSchedule")
+print("AcademicSchedule:", cur.fetchone()[0])
 
 conn.close()
