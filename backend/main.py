@@ -65,6 +65,21 @@ class RoleUpdate(BaseModel):
     role: Literal["teacher", "admin"]
 
 
+SCHEDULE_CATEGORIES = ["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
+
+
+class ScheduleCreate(BaseModel):
+    title: str
+    category: Literal["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
+    start_date: str
+    end_date: Optional[str] = None
+    created_by: int
+
+
+class PinUpdate(BaseModel):
+    is_pinned: bool
+
+
 @app.get("/")
 def read_root():
     return {"message": "CUBE API 서버가 실행 중입니다."}
@@ -191,16 +206,84 @@ def update_teacher_role(teacher_id: int, payload: RoleUpdate):
     return dict(row)
 
 
+# ---------- 관리자: 학사일정 (담당: yamako8119-ai) ----------
+@app.get("/academic-schedule")
+def get_academic_schedule():
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, title, category, start_date, end_date, created_by, created_at "
+        "FROM AcademicSchedule ORDER BY start_date"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/academic-schedule", status_code=201)
+def create_academic_schedule(payload: ScheduleCreate):
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO AcademicSchedule (title, category, start_date, end_date, created_by) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (payload.title, payload.category, payload.start_date, payload.end_date, payload.created_by),
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    row = conn.execute(
+        "SELECT id, title, category, start_date, end_date, created_by, created_at "
+        "FROM AcademicSchedule WHERE id = ?",
+        (new_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row)
+
+
 # ---------- 공지 ----------
 @app.get("/notices")
 def get_notices():
     conn = get_connection()
     rows = conn.execute(
         "SELECT id, title, content, deadline, target_group, is_pinned, created_at "
-        "FROM Announcement WHERE is_deleted = 0 ORDER BY created_at DESC"
+        "FROM Announcement WHERE is_deleted = 0 ORDER BY is_pinned DESC, created_at DESC"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ---------- 관리자: 공지사항 관리 (담당: yamako8119-ai) ----------
+@app.patch("/notices/{notice_id}/pin")
+def update_notice_pin(notice_id: int, payload: PinUpdate):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Announcement WHERE id = ?", (notice_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="공지사항을 찾을 수 없습니다.")
+
+    conn.execute(
+        "UPDATE Announcement SET is_pinned = ? WHERE id = ?",
+        (int(payload.is_pinned), notice_id),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, title, content, deadline, target_group, is_pinned, created_at "
+        "FROM Announcement WHERE id = ?",
+        (notice_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.delete("/notices/{notice_id}", status_code=204)
+def delete_notice(notice_id: int):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Announcement WHERE id = ?", (notice_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="공지사항을 찾을 수 없습니다.")
+
+    conn.execute("UPDATE Announcement SET is_deleted = 1 WHERE id = ?", (notice_id,))
+    conn.commit()
+    conn.close()
+    return None
 
 
 # ---------- 제출현황 ----------
