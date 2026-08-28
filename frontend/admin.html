@@ -85,6 +85,7 @@
       <button class="admin-nav-btn active" data-view="users">사용자 등록</button>
       <button class="admin-nav-btn" data-view="schedule">학사일정</button>
       <button class="admin-nav-btn" data-view="notices">공지사항 관리</button>
+      <button class="admin-nav-btn" data-view="groups">그룹 관리</button>
     </aside>
 
     <div class="admin-content">
@@ -165,6 +166,21 @@
             <tr><th>제목</th><th>마감일</th><th>고정</th><th>등록일</th><th>관리</th></tr>
           </thead>
           <tbody id="notices-table-body"></tbody>
+        </table>
+      </section>
+
+      <!-- ── 그룹 관리 ── -->
+      <section id="view-groups" class="admin-view">
+        <div class="section-header">
+          <h2>공식 그룹 관리</h2>
+          <button id="add-group-btn" class="btn btn-primary" onclick="startAddGroup()">등록</button>
+        </div>
+        <p id="groups-msg" class="admin-msg"></p>
+        <table class="admin-table">
+          <thead>
+            <tr><th>그룹명</th><th>설명</th><th>멤버 수</th><th>관리</th></tr>
+          </thead>
+          <tbody id="groups-table-body"></tbody>
         </table>
       </section>
 
@@ -411,6 +427,164 @@
       flashMsg("users-msg", "휴지통으로 이동했습니다.");
       loadTeachers();
       loadTrash();
+    }
+
+    // ── 그룹 관리 ──
+    let currentGroups = [];
+    let editingGroupId = null; // null | "new"
+    let expandedGroupId = null;
+    let expandedGroupMembers = [];
+
+    async function loadGroups() {
+      const res = await fetch(`${API_BASE}/groups?official=true`);
+      currentGroups = await res.json();
+      renderGroups();
+    }
+
+    function startAddGroup() {
+      if (editingGroupId !== null) return;
+      editingGroupId = "new";
+      renderGroups();
+    }
+
+    function cancelGroupEdit() {
+      editingGroupId = null;
+      renderGroups();
+    }
+
+    async function saveNewGroup() {
+      const name = document.getElementById("group-edit-name").value.trim();
+      const description = document.getElementById("group-edit-description").value.trim() || null;
+      if (!name) return flashMsg("groups-msg", "그룹명을 입력하세요.");
+
+      const res = await fetch(`${API_BASE}/groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description, created_by: CURRENT_ADMIN_ID }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("groups-msg", "등록 실패: " + (err.detail || res.status));
+      }
+      editingGroupId = null;
+      loadGroups();
+    }
+
+    async function deleteGroup(id, name) {
+      if (!confirm(`"${name}" 그룹을 삭제하시겠습니까? 소속된 멤버 정보도 함께 삭제됩니다.`)) return;
+      const res = await fetch(`${API_BASE}/groups/${id}`, { method: "DELETE" });
+      if (!res.ok) return flashMsg("groups-msg", "삭제 실패");
+      if (expandedGroupId === id) expandedGroupId = null;
+      loadGroups();
+    }
+
+    async function toggleGroupMembers(id) {
+      if (expandedGroupId === id) {
+        expandedGroupId = null;
+        renderGroups();
+        return;
+      }
+      expandedGroupId = id;
+      const res = await fetch(`${API_BASE}/groups/${id}/members`);
+      expandedGroupMembers = await res.json();
+      renderGroups();
+    }
+
+    async function addGroupMember(groupId) {
+      const select = document.getElementById("group-member-select");
+      const userId = Number(select.value);
+      if (!userId) return;
+
+      const res = await fetch(`${API_BASE}/groups/${groupId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("groups-msg", "멤버 추가 실패: " + (err.detail || res.status));
+      }
+
+      const membersRes = await fetch(`${API_BASE}/groups/${groupId}/members`);
+      expandedGroupMembers = await membersRes.json();
+      loadGroups();
+    }
+
+    async function removeGroupMember(groupId, userId) {
+      const res = await fetch(`${API_BASE}/groups/${groupId}/members/${userId}`, { method: "DELETE" });
+      if (!res.ok) return flashMsg("groups-msg", "멤버 제거 실패");
+
+      const membersRes = await fetch(`${API_BASE}/groups/${groupId}/members`);
+      expandedGroupMembers = await membersRes.json();
+      loadGroups();
+    }
+
+    function renderGroupEditRow() {
+      return `
+        <tr class="edit-row">
+          <td><input id="group-edit-name" placeholder="그룹명" /></td>
+          <td><input id="group-edit-description" placeholder="설명 (선택)" /></td>
+          <td>-</td>
+          <td>
+            <button class="btn btn-primary btn-sm" onclick="saveNewGroup()">저장</button>
+            <button class="btn btn-ghost btn-sm" onclick="cancelGroupEdit()">취소</button>
+          </td>
+        </tr>`;
+    }
+
+    function renderGroupMembersRow(group) {
+      const memberIds = new Set(expandedGroupMembers.map((m) => m.user_id));
+      const availableTeachers = currentTeachers.filter((t) => !memberIds.has(t.id));
+      return `
+        <tr class="group-members-row">
+          <td colspan="4" style="text-align:left; background:var(--bg-soft);">
+            <div style="padding:8px;">
+              <div style="font-weight:700; margin-bottom:6px;">${group.name} 멤버</div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                ${
+                  expandedGroupMembers
+                    .map(
+                      (m) => `
+                  <span class="pin-badge" style="display:inline-flex; align-items:center; gap:4px;">
+                    ${m.name}${m.role === "owner" ? " (owner)" : ""}
+                    <span style="cursor:pointer; font-weight:700;" onclick="removeGroupMember(${group.id}, ${m.user_id})">×</span>
+                  </span>`
+                    )
+                    .join("") || "<span style='color:var(--text-muted); font-size:0.85rem;'>멤버가 없습니다.</span>"
+                }
+              </div>
+              <div style="display:flex; gap:6px;">
+                <select id="group-member-select" style="flex:1; max-width:220px;">
+                  ${availableTeachers.map((t) => `<option value="${t.id}">${t.name}</option>`).join("")}
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="addGroupMember(${group.id})">추가</button>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+    }
+
+    function renderGroups() {
+      let html = editingGroupId === "new" ? renderGroupEditRow() : "";
+      html += currentGroups
+        .map((g) => {
+          let row = `
+        <tr>
+          <td>${g.name}</td>
+          <td>${g.description ?? "-"}</td>
+          <td>${g.member_count}</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="toggleGroupMembers(${g.id})">멤버 관리</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteGroup(${g.id}, '${g.name.replace(/'/g, "\\'")}')">삭제</button>
+          </td>
+        </tr>`;
+          if (expandedGroupId === g.id) {
+            row += renderGroupMembersRow(g);
+          }
+          return row;
+        })
+        .join("");
+      document.getElementById("groups-table-body").innerHTML = html;
     }
 
     // ── 휴지통 ──
@@ -671,6 +845,7 @@
     loadSchedule();
     loadNotices();
     loadTrash();
+    loadGroups();
     loadServerStatus();
     setInterval(loadServerStatus, 5000);
   </script>

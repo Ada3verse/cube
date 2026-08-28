@@ -87,6 +87,16 @@ class PinUpdate(BaseModel):
     is_pinned: bool
 
 
+class GroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    created_by: int
+
+
+class GroupMemberAdd(BaseModel):
+    user_id: int
+
+
 @app.get("/")
 def read_root():
     return {"message": "CUBE API 서버가 실행 중입니다."}
@@ -314,6 +324,109 @@ def delete_academic_schedule(schedule_id: int):
         raise HTTPException(status_code=404, detail="학사일정을 찾을 수 없습니다.")
 
     conn.execute("DELETE FROM AcademicSchedule WHERE id = ?", (schedule_id,))
+    conn.commit()
+    conn.close()
+    return None
+
+
+# ---------- 관리자: 그룹 관리 (담당: yamako8119-ai) ----------
+@app.get("/groups")
+def get_groups(official: Optional[bool] = None):
+    conn = get_connection()
+    query = (
+        "SELECT g.id, g.name, g.description, g.created_by, g.is_official, g.created_at, "
+        "(SELECT COUNT(*) FROM Group_Member gm WHERE gm.group_id = g.id) AS member_count "
+        "FROM Groups g"
+    )
+    params: list = []
+    if official is not None:
+        query += " WHERE g.is_official = ?"
+        params.append(int(official))
+    query += " ORDER BY g.created_at DESC"
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/groups", status_code=201)
+def create_group(payload: GroupCreate):
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO Groups (name, description, created_by, is_official) VALUES (?, ?, ?, 1)",
+        (payload.name, payload.description, payload.created_by),
+    )
+    group_id = cur.lastrowid
+    conn.execute(
+        "INSERT INTO Group_Member (group_id, user_id, role) VALUES (?, ?, 'owner')",
+        (group_id, payload.created_by),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, name, description, created_by, is_official, created_at FROM Groups WHERE id = ?",
+        (group_id,),
+    ).fetchone()
+    conn.close()
+    result = dict(row)
+    result["member_count"] = 1
+    return result
+
+
+@app.delete("/groups/{group_id}", status_code=204)
+def delete_group(group_id: int):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Groups WHERE id = ?", (group_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    conn.execute("DELETE FROM Group_Member WHERE group_id = ?", (group_id,))
+    conn.execute("DELETE FROM Groups WHERE id = ?", (group_id,))
+    conn.commit()
+    conn.close()
+    return None
+
+
+@app.get("/groups/{group_id}/members")
+def get_group_members(group_id: int):
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT gm.id, gm.user_id, u.name, gm.role, gm.joined_at
+           FROM Group_Member gm JOIN User u ON u.id = gm.user_id
+           WHERE gm.group_id = ? ORDER BY gm.role, u.name""",
+        (group_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/groups/{group_id}/members", status_code=201)
+def add_group_member(group_id: int, payload: GroupMemberAdd):
+    conn = get_connection()
+    group = conn.execute("SELECT id FROM Groups WHERE id = ?", (group_id,)).fetchone()
+    if group is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    existing_member = conn.execute(
+        "SELECT id FROM Group_Member WHERE group_id = ? AND user_id = ?", (group_id, payload.user_id)
+    ).fetchone()
+    if existing_member:
+        conn.close()
+        raise HTTPException(status_code=409, detail="이미 그룹에 속한 교사입니다.")
+
+    conn.execute(
+        "INSERT INTO Group_Member (group_id, user_id, role) VALUES (?, ?, 'member')",
+        (group_id, payload.user_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/groups/{group_id}/members/{user_id}", status_code=204)
+def remove_group_member(group_id: int, user_id: int):
+    conn = get_connection()
+    conn.execute("DELETE FROM Group_Member WHERE group_id = ? AND user_id = ?", (group_id, user_id))
     conn.commit()
     conn.close()
     return None
