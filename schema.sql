@@ -1,7 +1,7 @@
 -- User: 구성원 (교사 전용, 학생 없음)
 CREATE TABLE User (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    name          TEXT NOT NULL UNIQUE,          -- 로그인 아이디로 사용
+    name          TEXT NOT NULL,                  -- 로그인 아이디로 사용 (프로토타입: 중복 허용)
     password_hash TEXT NOT NULL,                  -- 초기 비밀번호: 123456 (해시 저장)
     is_admin      INTEGER NOT NULL DEFAULT 0,    -- 관리자 여부 (0=일반 교사, 1=관리자)
     department    TEXT NOT NULL,                  -- 부서명 (학교마다 다르므로 자유 입력)
@@ -9,11 +9,10 @@ CREATE TABLE User (
     is_homeroom   INTEGER NOT NULL DEFAULT 0,     -- 담임 여부
     grade         INTEGER CHECK (grade IS NULL OR grade BETWEEN 1 AND 3),  -- 담임 학년, 담임 아니면 NULL
     class_no      INTEGER,                        -- 담임 반, 담임 아니면 NULL
-    extension     TEXT NOT NULL UNIQUE,            -- 내선번호
+    extension     TEXT NOT NULL,                    -- 내선번호 (프로토타입: 중복 허용)
     is_deleted    INTEGER NOT NULL DEFAULT 0,      -- 삭제(휴지통) 여부, soft delete
     metadata      TEXT,                            -- 여분 확장 필드 (JSON 문자열), 필요할 때만 사용
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (grade, class_no)                       -- 한 반에 담임은 한 명 (NULL끼리는 중복 허용됨)
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Event: 일정 (회의/행사/제출마감/개인일정)
@@ -101,7 +100,7 @@ CREATE TABLE Memo (
 CREATE TABLE AcademicSchedule (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     title       TEXT NOT NULL,                      -- 예: "여름방학", "1학기 기말고사"
-    category    TEXT NOT NULL CHECK (category IN ('학기', '방학', '시험기간', '공휴일', '재량휴업일', '기타')),
+    category    TEXT NOT NULL CHECK (category IN ('공휴일', '시험', '행사', '창체', '동아리', '기타')),
     start_date  TEXT NOT NULL,                       -- YYYY-MM-DD
     end_date    TEXT,                                -- 기간이면 종료일, 하루짜리면 NULL
     created_by  INTEGER NOT NULL REFERENCES User(id),
