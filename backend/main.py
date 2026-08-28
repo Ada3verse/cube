@@ -335,7 +335,9 @@ def get_groups(official: Optional[bool] = None):
     conn = get_connection()
     query = (
         "SELECT g.id, g.name, g.description, g.created_by, g.is_official, g.created_at, "
-        "(SELECT COUNT(*) FROM Group_Member gm WHERE gm.group_id = g.id) AS member_count "
+        "(SELECT COUNT(*) FROM Group_Member gm WHERE gm.group_id = g.id) AS member_count, "
+        "(SELECT GROUP_CONCAT(u.name, ', ') FROM Group_Member gm2 "
+        " JOIN User u ON u.id = gm2.user_id WHERE gm2.group_id = g.id) AS members "
         "FROM Groups g"
     )
     params: list = []

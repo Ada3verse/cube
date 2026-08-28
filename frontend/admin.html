@@ -181,7 +181,7 @@
         <p id="groups-msg" class="admin-msg"></p>
         <table class="admin-table">
           <thead>
-            <tr><th>그룹명</th><th>설명</th><th>멤버 수</th><th>관리</th></tr>
+            <tr><th>그룹명</th><th>그룹원</th><th>멤버 수</th><th>관리</th></tr>
           </thead>
           <tbody id="groups-table-body"></tbody>
         </table>
@@ -465,13 +465,12 @@
 
     async function saveNewGroup() {
       const name = document.getElementById("group-edit-name").value.trim();
-      const description = document.getElementById("group-edit-description").value.trim() || null;
       if (!name) return flashMsg("groups-msg", "그룹명을 입력하세요.");
 
       const res = await fetch(`${API_BASE}/groups`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, created_by: CURRENT_ADMIN_ID }),
+        body: JSON.stringify({ name, description: null, created_by: CURRENT_ADMIN_ID }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -534,7 +533,7 @@
       return `
         <tr class="edit-row">
           <td><input id="group-edit-name" placeholder="그룹명" /></td>
-          <td><input id="group-edit-description" placeholder="설명 (선택)" /></td>
+          <td>-</td>
           <td>-</td>
           <td>
             <button class="btn btn-primary btn-sm" onclick="saveNewGroup()">저장</button>
@@ -582,7 +581,7 @@
           let row = `
         <tr>
           <td>${g.name}</td>
-          <td>${g.description ?? "-"}</td>
+          <td>${g.members ?? "-"}</td>
           <td>${g.member_count}</td>
           <td>
             <button class="btn btn-ghost btn-sm" onclick="toggleGroupMembers(${g.id})">멤버 관리</button>
