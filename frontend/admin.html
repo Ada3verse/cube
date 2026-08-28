@@ -19,6 +19,10 @@
     .admin-form label.checkbox { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--text-muted); }
     .admin-table { width: 100%; border-collapse: collapse; background: var(--white); }
     .admin-table th { background: var(--green-lighter); color: #1f4d33; padding: 10px; text-align: left; }
+    .admin-table th.sortable { cursor: pointer; user-select: none; }
+    .admin-table th.sortable:hover { background: var(--green-light); }
+    .admin-table th.sortable .sort-arrow { display: inline-block; width: 1em; opacity: 0.5; }
+    .admin-table th.sortable.sort-active .sort-arrow { opacity: 1; }
     .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
     .admin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--danger); color: #fff; }
     .pin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; background: var(--green-light); color: #1f4d33; }
@@ -71,8 +75,15 @@
         <table class="admin-table">
           <thead>
             <tr>
-              <th>ID</th><th>이름</th><th>권한</th><th>부서</th><th>과목</th>
-              <th>담임</th><th>학년/반</th><th>내선</th><th>관리</th>
+              <th class="sortable" data-sort="id">ID <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="name">이름 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="is_admin">권한 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="department">부서 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="subject">과목 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="is_homeroom">담임 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="grade">학년/반 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="extension">내선 <span class="sort-arrow"></span></th>
+              <th>관리</th>
             </tr>
           </thead>
           <tbody id="teacher-table-body"></tbody>
@@ -143,10 +154,46 @@
     }
 
     // ── 사용자 등록/목록 ──
+    let currentTeachers = [];
+    let teacherSort = { key: null, dir: 1 };
+
     async function loadTeachers() {
       const res = await fetch(`${API_BASE}/teachers`);
-      const teachers = await res.json();
-      document.getElementById("teacher-table-body").innerHTML = teachers
+      currentTeachers = await res.json();
+      renderTeachers();
+    }
+
+    function compareValues(a, b) {
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+      if (typeof a === "string") return a.localeCompare(b, "ko");
+      return a - b;
+    }
+
+    function renderTeachers() {
+      let rows = [...currentTeachers];
+      const { key, dir } = teacherSort;
+
+      if (key) {
+        rows.sort((a, b) => {
+          let result;
+          if (key === "grade") {
+            result = compareValues(a.grade, b.grade) || compareValues(a.class_no, b.class_no);
+          } else {
+            result = compareValues(a[key], b[key]);
+          }
+          return result * dir;
+        });
+      }
+
+      document.querySelectorAll("#view-users th.sortable").forEach((th) => {
+        th.classList.toggle("sort-active", th.dataset.sort === key);
+        th.querySelector(".sort-arrow").textContent =
+          th.dataset.sort === key ? (dir === 1 ? "▲" : "▼") : "";
+      });
+
+      document.getElementById("teacher-table-body").innerHTML = rows
         .map(
           (t) => `
         <tr>
@@ -163,6 +210,18 @@
         )
         .join("");
     }
+
+    document.querySelectorAll("#view-users th.sortable").forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.sort;
+        if (teacherSort.key === key) {
+          teacherSort.dir *= -1;
+        } else {
+          teacherSort = { key, dir: 1 };
+        }
+        renderTeachers();
+      });
+    });
 
     async function toggleAdmin(id, currentIsAdmin) {
       const res = await fetch(`${API_BASE}/teachers/${id}/admin`, {
