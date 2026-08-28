@@ -24,9 +24,12 @@
     .admin-table th.sortable .sort-arrow { display: inline-block; width: 1em; opacity: 0.5; }
     .admin-table th.sortable.sort-active .sort-arrow { opacity: 1; }
     .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
-    .admin-toggle-btn { padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--bg-soft); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; }
+    .admin-toggle-btn { padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--white); color: var(--text-muted); border: 1px solid transparent; cursor: pointer; }
+    .admin-toggle-btn:hover { border-color: var(--border); }
     .admin-toggle-btn.active { background: var(--danger); color: #fff; border-color: var(--danger); }
     .pin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; background: var(--green-light); color: #1f4d33; }
+    .server-status-widget { position: fixed; bottom: 12px; left: 12px; background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.7; box-shadow: 0 4px 12px rgba(0,0,0,0.06); z-index: 100; }
+    .server-status-widget b { color: var(--text); }
     .admin-msg { font-size: 0.85rem; color: var(--danger); min-height: 1.2em; }
   </style>
 </head>
@@ -132,6 +135,12 @@
       </section>
 
     </div>
+  </div>
+
+  <div class="server-status-widget" id="server-status-widget">
+    <div>디스크: <b id="status-disk">-</b></div>
+    <div>RAM: <b id="status-ram">-</b></div>
+    <div>서버 시각: <b id="status-time">-</b></div>
   </div>
 
   <script>
@@ -351,9 +360,26 @@
       loadNotices();
     }
 
+    // ── 서버 상태 ──
+    async function loadServerStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/server-status`);
+        const s = await res.json();
+        document.getElementById("status-disk").textContent =
+          `${s.disk_used_gb} / ${s.disk_total_gb} GB (${s.disk_percent}%)`;
+        document.getElementById("status-ram").textContent =
+          `${s.ram_used_gb} / ${s.ram_total_gb} GB (${s.ram_percent}%)`;
+        document.getElementById("status-time").textContent = s.server_time;
+      } catch {
+        document.getElementById("status-time").textContent = "연결 끊김";
+      }
+    }
+
     loadTeachers();
     loadSchedule();
     loadNotices();
+    loadServerStatus();
+    setInterval(loadServerStatus, 5000);
   </script>
 
 </body>

@@ -1,13 +1,17 @@
 import hashlib
+import shutil
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
 
+import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-DB_PATH = Path(__file__).resolve().parent.parent / "database.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "database.db"
 
 app = FastAPI(title="CUBE API")
 
@@ -83,6 +87,22 @@ class PinUpdate(BaseModel):
 @app.get("/")
 def read_root():
     return {"message": "CUBE API 서버가 실행 중입니다."}
+
+
+# ---------- 서버 상태 (담당: yamako8119-ai) ----------
+@app.get("/server-status")
+def get_server_status():
+    disk = shutil.disk_usage(BASE_DIR)
+    mem = psutil.virtual_memory()
+    return {
+        "disk_used_gb": round(disk.used / (1024**3), 1),
+        "disk_total_gb": round(disk.total / (1024**3), 1),
+        "disk_percent": round(disk.used / disk.total * 100, 1),
+        "ram_used_gb": round(mem.used / (1024**3), 1),
+        "ram_total_gb": round(mem.total / (1024**3), 1),
+        "ram_percent": mem.percent,
+        "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
 
 
 # ---------- 로그인 ----------
