@@ -72,12 +72,12 @@ class HomeroomStatusUpdate(BaseModel):
     is_homeroom: bool
 
 
-SCHEDULE_CATEGORIES = ["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
+SCHEDULE_CATEGORIES = ["공휴일", "시험", "행사", "창체", "동아리", "기타"]
 
 
 class ScheduleCreate(BaseModel):
     title: str
-    category: Literal["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
+    category: Literal["공휴일", "시험", "행사", "창체", "동아리", "기타"]
     start_date: str
     end_date: Optional[str] = None
     created_by: int

@@ -39,7 +39,8 @@
     #schedule-calendar-table td.empty { cursor: default; }
     #schedule-calendar-table td:not(.empty):hover { background: var(--bg-soft); }
     .schedule-day-num { font-weight: 600; margin-bottom: 4px; }
-    .schedule-item-badge { display: block; background: var(--green-light); color: #1f4d33; border-radius: 6px; padding: 1px 4px; font-size: 0.7rem; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .schedule-item-badge { display: block; color: #fff; border-radius: 6px; padding: 1px 4px; font-size: 0.7rem; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .category-badge { display: inline-block; color: #fff; border-radius: 999px; padding: 3px 10px; font-size: 0.75rem; font-weight: 700; }
     .edit-row td { padding: 6px 10px; }
     .edit-row input { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; width: 100%; box-sizing: border-box; }
     .edit-row input[type="number"] { width: 50px; }
@@ -135,11 +136,11 @@
         <form id="schedule-form" class="admin-form">
           <input name="title" placeholder="제목 (예: 여름방학)" required />
           <select name="category" required>
-            <option value="학기">학기</option>
-            <option value="방학">방학</option>
-            <option value="시험기간">시험기간</option>
             <option value="공휴일">공휴일</option>
-            <option value="재량휴업일">재량휴업일</option>
+            <option value="시험">시험</option>
+            <option value="행사">행사</option>
+            <option value="창체">창체</option>
+            <option value="동아리">동아리</option>
             <option value="기타">기타</option>
           </select>
           <input name="start_date" type="date" required />
@@ -443,6 +444,14 @@
 
     // ── 학사일정 ──
     let currentSchedule = [];
+    const SCHEDULE_CATEGORY_COLORS = {
+      공휴일: "#e0555f",
+      시험: "#e0954f",
+      행사: "#9b7fd4",
+      창체: "#5fa8d3",
+      동아리: "#d97fb0",
+      기타: "#9e9e9e",
+    };
     let scheduleViewYear, scheduleViewMonth;
     let scheduleAddDate = null; // 클릭해서 빠른 등록 중인 날짜(YYYY-MM-DD) 또는 null
 
@@ -459,7 +468,7 @@
           (s) => `
         <tr>
           <td>${s.title}</td>
-          <td>${s.category}</td>
+          <td><span class="category-badge" style="background:${SCHEDULE_CATEGORY_COLORS[s.category] ?? "#9e9e9e"}">${s.category}</span></td>
           <td>${s.start_date}</td>
           <td>${s.end_date ?? "-"}</td>
         </tr>`
@@ -534,11 +543,11 @@
               <div class="schedule-day-num">${date}</div>
               <input id="quick-add-title" placeholder="일정명" style="width:100%;font-size:0.72rem;padding:2px 4px;margin-bottom:2px;box-sizing:border-box;" />
               <select id="quick-add-category" style="width:100%;font-size:0.68rem;margin-bottom:2px;">
-                <option value="학기">학기</option>
-                <option value="방학">방학</option>
-                <option value="시험기간">시험기간</option>
                 <option value="공휴일">공휴일</option>
-                <option value="재량휴업일">재량휴업일</option>
+                <option value="시험">시험</option>
+                <option value="행사">행사</option>
+                <option value="창체">창체</option>
+                <option value="동아리">동아리</option>
                 <option value="기타" selected>기타</option>
               </select>
               <div style="display:flex;gap:4px;">
@@ -549,7 +558,12 @@
             const items = scheduleItemsOnDate(dateStr);
             cell.innerHTML = `
               <div class="schedule-day-num">${date}</div>
-              ${items.map((it) => `<span class="schedule-item-badge" title="${it.title}">${it.title}</span>`).join("")}`;
+              ${items
+                .map(
+                  (it) =>
+                    `<span class="schedule-item-badge" style="background:${SCHEDULE_CATEGORY_COLORS[it.category] ?? "#9e9e9e"}" title="${it.title} (${it.category})">${it.title}</span>`
+                )
+                .join("")}`;
             cell.addEventListener("click", () => {
               scheduleAddDate = dateStr;
               renderScheduleCalendar();

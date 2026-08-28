@@ -100,7 +100,7 @@ CREATE TABLE Memo (
 CREATE TABLE AcademicSchedule (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     title       TEXT NOT NULL,                      -- 예: "여름방학", "1학기 기말고사"
-    category    TEXT NOT NULL CHECK (category IN ('학기', '방학', '시험기간', '공휴일', '재량휴업일', '기타')),
+    category    TEXT NOT NULL CHECK (category IN ('공휴일', '시험', '행사', '창체', '동아리', '기타')),
     start_date  TEXT NOT NULL,                       -- YYYY-MM-DD
     end_date    TEXT,                                -- 기간이면 종료일, 하루짜리면 NULL
     created_by  INTEGER NOT NULL REFERENCES User(id),
