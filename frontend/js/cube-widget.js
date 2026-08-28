@@ -419,7 +419,7 @@ function computeMentionMatches(query) {
     .map(t => ({ type: 'user', id: t.id, name: t.name, sub: t.department || '' }));
   const groupMatches = directory.groups
     .filter(g => g.name.toLowerCase().includes(q))
-    .map(g => ({ type: 'group', id: g.id, name: g.name, sub: `${g.members?.length || 0}명` }));
+    .map(g => ({ type: 'group', id: g.id, name: g.name, sub: `${g.member_count || 0}명` }));
   return [...teacherMatches, ...groupMatches].slice(0, 8);
 }
 
@@ -519,7 +519,7 @@ function groupChecklistHTML(idPrefix, preselectedIds = new Set()) {
     <label class="cw-check-row">
       <input type="checkbox" data-type="group" data-id="${g.id}" id="${idPrefix}-g-${g.id}" ${preselectedIds.has(g.id) ? 'checked' : ''} />
       <span>#${g.name}</span>
-      <span class="cw-check-sub">${g.members?.length || 0}명</span>
+      <span class="cw-check-sub">${g.member_count || 0}명</span>
     </label>`).join('')}</div>`;
 }
 

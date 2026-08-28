@@ -66,6 +66,8 @@ async function fetchGroups() {
   return res.json();
 }
 
+// 그룹 생성 API(POST /groups)는 생성자만 owner로 넣어준다 (팀원 구현).
+// 나머지 멤버는 POST /groups/{id}/members 로 한 명씩 추가한다.
 async function createGroup({ name, description = null, memberIds = [] }) {
   const res = await fetch(`${API_BASE}/groups`, {
     method: "POST",
@@ -74,14 +76,32 @@ async function createGroup({ name, description = null, memberIds = [] }) {
       name,
       description,
       created_by: getCurrentUserId(),
-      member_ids: memberIds,
     }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "그룹 생성에 실패했습니다.");
   }
-  return res.json();
+  const group = await res.json();
+
+  const creatorId = getCurrentUserId();
+  const others = memberIds.filter((id) => id !== creatorId);
+  await Promise.all(others.map((userId) => addGroupMember(group.id, userId)));
+
+  group.member_count = 1 + others.length;
+  return group;
+}
+
+async function addGroupMember(groupId, userId) {
+  const res = await fetch(`${API_BASE}/groups/${groupId}/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId }),
+  });
+  if (!res.ok && res.status !== 409) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "그룹원 추가에 실패했습니다.");
+  }
 }
 
 async function createNotice({
