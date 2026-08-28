@@ -242,6 +242,34 @@ def delete_teacher(teacher_id: int):
     return None
 
 
+@app.get("/teachers/trash")
+def get_deleted_teachers():
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, name, department, subject, extension "
+        "FROM User WHERE is_deleted = 1 ORDER BY name"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/teachers/{teacher_id}/restore")
+def restore_teacher(teacher_id: int):
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM User WHERE id = ? AND is_deleted = 1", (teacher_id,)
+    ).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="휴지통에서 해당 교사를 찾을 수 없습니다.")
+
+    conn.execute("UPDATE User SET is_deleted = 0 WHERE id = ?", (teacher_id,))
+    conn.commit()
+    row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
 # ---------- 관리자: 학사일정 (담당: yamako8119-ai) ----------
 @app.get("/academic-schedule")
 def get_academic_schedule():

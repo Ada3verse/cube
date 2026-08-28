@@ -50,6 +50,7 @@
       <button class="admin-nav-btn active" data-view="users">사용자 등록</button>
       <button class="admin-nav-btn" data-view="schedule">학사일정</button>
       <button class="admin-nav-btn" data-view="notices">공지사항 관리</button>
+      <button class="admin-nav-btn" data-view="trash">휴지통</button>
     </aside>
 
     <div class="admin-content">
@@ -131,6 +132,18 @@
             <tr><th>제목</th><th>마감일</th><th>고정</th><th>등록일</th><th>관리</th></tr>
           </thead>
           <tbody id="notices-table-body"></tbody>
+        </table>
+      </section>
+
+      <!-- ── 휴지통 ── -->
+      <section id="view-trash" class="admin-view">
+        <div class="section-header"><h2>휴지통 (삭제된 교사)</h2></div>
+        <p id="trash-msg" class="admin-msg"></p>
+        <table class="admin-table">
+          <thead>
+            <tr><th>ID</th><th>이름</th><th>부서</th><th>과목</th><th>내선</th><th>관리</th></tr>
+          </thead>
+          <tbody id="trash-table-body"></tbody>
         </table>
       </section>
 
@@ -247,6 +260,34 @@
       const res = await fetch(`${API_BASE}/teachers/${id}`, { method: "DELETE" });
       if (!res.ok) return flashMsg("users-msg", "삭제 실패");
       flashMsg("users-msg", "휴지통으로 이동했습니다.");
+      loadTeachers();
+      loadTrash();
+    }
+
+    // ── 휴지통 ──
+    async function loadTrash() {
+      const res = await fetch(`${API_BASE}/teachers/trash`);
+      const rows = await res.json();
+      document.getElementById("trash-table-body").innerHTML = rows
+        .map(
+          (t) => `
+        <tr>
+          <td>${t.id}</td>
+          <td>${t.name}</td>
+          <td>${t.department}</td>
+          <td>${t.subject ?? "-"}</td>
+          <td>${t.extension}</td>
+          <td><button class="btn btn-ghost" onclick="restoreTeacher(${t.id})">복원</button></td>
+        </tr>`
+        )
+        .join("");
+    }
+
+    async function restoreTeacher(id) {
+      const res = await fetch(`${API_BASE}/teachers/${id}/restore`, { method: "POST" });
+      if (!res.ok) return flashMsg("trash-msg", "복원 실패");
+      flashMsg("trash-msg", "복원했습니다.");
+      loadTrash();
       loadTeachers();
     }
 
@@ -378,6 +419,7 @@
     loadTeachers();
     loadSchedule();
     loadNotices();
+    loadTrash();
     loadServerStatus();
     setInterval(loadServerStatus, 5000);
   </script>
