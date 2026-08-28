@@ -53,6 +53,7 @@ CREATE TABLE Announcement (
     content       TEXT NOT NULL,
     author_id     INTEGER NOT NULL REFERENCES User(id),
     target_group  TEXT,
+    deadline      TEXT,                          -- 마감일 (D-day 표시용), 없으면 NULL
     is_pinned     INTEGER NOT NULL DEFAULT 0,
     is_deleted    INTEGER NOT NULL DEFAULT 0,     -- soft delete
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),

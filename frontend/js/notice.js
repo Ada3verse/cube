@@ -28,7 +28,7 @@ function createNotice({ title, content, deadline, mentionedTeachers = [] }) {
     mentionedTeachers: mentionedTeachers.length
       ? mentionedTeachers
       : extractMentions(content),
-    createdAt: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   };
   notices.push(notice);
   return notice;
