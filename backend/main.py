@@ -42,7 +42,7 @@ DEFAULT_PASSWORD = "123456"
 
 class TeacherCreate(BaseModel):
     name: str
-    role: Literal["teacher", "admin"] = "teacher"
+    is_admin: bool = False
     department: str
     subject: Optional[str] = None
     is_homeroom: bool = False
@@ -61,8 +61,8 @@ class TeacherUpdate(BaseModel):
     extension: Optional[str] = None
 
 
-class RoleUpdate(BaseModel):
-    role: Literal["teacher", "admin"]
+class AdminStatusUpdate(BaseModel):
+    is_admin: bool
 
 
 SCHEDULE_CATEGORIES = ["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
@@ -91,7 +91,7 @@ def read_root():
 def login(payload: LoginRequest):
     conn = get_connection()
     row = conn.execute(
-        "SELECT id, name, role, department, subject, password_hash "
+        "SELECT id, name, is_admin, department, subject, password_hash "
         "FROM User WHERE name = ?",
         (payload.name,),
     ).fetchone()
@@ -103,7 +103,7 @@ def login(payload: LoginRequest):
     return {
         "id": row["id"],
         "name": row["name"],
-        "role": row["role"],
+        "is_admin": bool(row["is_admin"]),
         "department": row["department"],
         "subject": row["subject"],
     }
@@ -114,7 +114,7 @@ def login(payload: LoginRequest):
 def get_teachers():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, name, role, department, subject, is_homeroom, grade, class_no, extension "
+        "SELECT id, name, is_admin, department, subject, is_homeroom, grade, class_no, extension "
         "FROM User ORDER BY name"
     ).fetchall()
     conn.close()
@@ -122,7 +122,7 @@ def get_teachers():
 
 
 TEACHER_SELECT = (
-    "SELECT id, name, role, department, subject, is_homeroom, grade, class_no, extension "
+    "SELECT id, name, is_admin, department, subject, is_homeroom, grade, class_no, extension "
     "FROM User WHERE id = ?"
 )
 
@@ -136,12 +136,12 @@ def create_teacher(payload: TeacherCreate):
     conn = get_connection()
     try:
         cur = conn.execute(
-            """INSERT INTO User (name, password_hash, role, department, subject, is_homeroom, grade, class_no, extension)
+            """INSERT INTO User (name, password_hash, is_admin, department, subject, is_homeroom, grade, class_no, extension)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 payload.name,
                 hash_password(DEFAULT_PASSWORD),
-                payload.role,
+                int(payload.is_admin),
                 payload.department,
                 payload.subject,
                 int(payload.is_homeroom),
@@ -191,15 +191,15 @@ def update_teacher(teacher_id: int, payload: TeacherUpdate):
     return dict(row)
 
 
-@app.patch("/teachers/{teacher_id}/role")
-def update_teacher_role(teacher_id: int, payload: RoleUpdate):
+@app.patch("/teachers/{teacher_id}/admin")
+def update_teacher_admin_status(teacher_id: int, payload: AdminStatusUpdate):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM User WHERE id = ?", (teacher_id,)).fetchone()
     if existing is None:
         conn.close()
         raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
 
-    conn.execute("UPDATE User SET role = ? WHERE id = ?", (payload.role, teacher_id))
+    conn.execute("UPDATE User SET is_admin = ? WHERE id = ?", (int(payload.is_admin), teacher_id))
     conn.commit()
     row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
     conn.close()

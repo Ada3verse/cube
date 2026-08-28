@@ -3,7 +3,7 @@ CREATE TABLE User (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL UNIQUE,          -- 로그인 아이디로 사용
     password_hash TEXT NOT NULL,                  -- 초기 비밀번호: 123456 (해시 저장)
-    role          TEXT NOT NULL CHECK (role IN ('teacher', 'admin')) DEFAULT 'teacher',
+    is_admin      INTEGER NOT NULL DEFAULT 0,    -- 관리자 여부 (0=일반 교사, 1=관리자)
     department    TEXT NOT NULL CHECK (department IN ('교무부', '연구부', '과학정보부', '창의체험부', '생활안전부')),
     subject       TEXT,                          -- 담당 과목 (국어/영어/수학/과학/정보/사회 등), 없으면 NULL
     is_homeroom   INTEGER NOT NULL DEFAULT 0,     -- 담임 여부

@@ -20,9 +20,7 @@
     .admin-table { width: 100%; border-collapse: collapse; background: var(--white); }
     .admin-table th { background: var(--green-lighter); color: #1f4d33; padding: 10px; text-align: left; }
     .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
-    .role-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
-    .role-badge.admin { background: var(--danger); color: #fff; }
-    .role-badge.teacher { background: var(--mint); color: #1a3d40; }
+    .admin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--danger); color: #fff; }
     .pin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; background: var(--green-light); color: #1f4d33; }
     .admin-msg { font-size: 0.85rem; color: var(--danger); min-height: 1.2em; }
   </style>
@@ -53,10 +51,6 @@
         <div class="section-header"><h2>교사 등록</h2></div>
         <form id="create-form" class="admin-form">
           <input name="name" placeholder="이름" required />
-          <select name="role">
-            <option value="teacher">teacher</option>
-            <option value="admin">admin</option>
-          </select>
           <select name="department" required>
             <option value="교무부">교무부</option>
             <option value="연구부">연구부</option>
@@ -158,24 +152,23 @@
         <tr>
           <td>${t.id}</td>
           <td>${t.name}</td>
-          <td><span class="role-badge ${t.role}">${t.role}</span></td>
+          <td>${t.is_admin ? `<span class="admin-badge">관리자</span>` : "-"}</td>
           <td>${t.department}</td>
           <td>${t.subject ?? "-"}</td>
           <td>${t.is_homeroom ? "Y" : "-"}</td>
           <td>${t.is_homeroom ? `${t.grade}학년 ${t.class_no}반` : "-"}</td>
           <td>${t.extension}</td>
-          <td><button class="btn btn-ghost" onclick="toggleRole(${t.id}, '${t.role}')">권한 전환</button></td>
+          <td><button class="btn btn-ghost" onclick="toggleAdmin(${t.id}, ${t.is_admin})">${t.is_admin ? "관리자 해제" : "관리자 지정"}</button></td>
         </tr>`
         )
         .join("");
     }
 
-    async function toggleRole(id, currentRole) {
-      const newRole = currentRole === "admin" ? "teacher" : "admin";
-      const res = await fetch(`${API_BASE}/teachers/${id}/role`, {
+    async function toggleAdmin(id, currentIsAdmin) {
+      const res = await fetch(`${API_BASE}/teachers/${id}/admin`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify({ is_admin: !currentIsAdmin }),
       });
       if (!res.ok) return flashMsg("users-msg", "권한 변경 실패");
       loadTeachers();
@@ -187,7 +180,6 @@
       const data = new FormData(form);
       const payload = {
         name: data.get("name"),
-        role: data.get("role"),
         department: data.get("department"),
         subject: data.get("subject") || null,
         is_homeroom: form.querySelector("[name=is_homeroom]").checked,
