@@ -154,27 +154,23 @@ TEACHER_SELECT = (
 @app.post("/teachers", status_code=201)
 def create_teacher(payload: TeacherCreate):
     conn = get_connection()
-    try:
-        cur = conn.execute(
-            """INSERT INTO User (name, password_hash, is_admin, department, subject, is_homeroom, grade, class_no, extension)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                payload.name,
-                hash_password(DEFAULT_PASSWORD),
-                int(payload.is_admin),
-                payload.department,
-                payload.subject,
-                int(payload.is_homeroom),
-                payload.grade,
-                payload.class_no,
-                payload.extension,
-            ),
-        )
-        conn.commit()
-        new_id = cur.lastrowid
-    except sqlite3.IntegrityError as e:
-        conn.close()
-        raise HTTPException(status_code=409, detail=f"저장 실패 (이름/내선번호/학년-반 중복 가능성): {e}")
+    cur = conn.execute(
+        """INSERT INTO User (name, password_hash, is_admin, department, subject, is_homeroom, grade, class_no, extension)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            payload.name,
+            hash_password(DEFAULT_PASSWORD),
+            int(payload.is_admin),
+            payload.department,
+            payload.subject,
+            int(payload.is_homeroom),
+            payload.grade,
+            payload.class_no,
+            payload.extension,
+        ),
+    )
+    conn.commit()
+    new_id = cur.lastrowid
 
     row = conn.execute(TEACHER_SELECT, (new_id,)).fetchone()
     conn.close()
@@ -196,12 +192,8 @@ def update_teacher(teacher_id: int, payload: TeacherUpdate):
         raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
 
     set_clause = ", ".join(f"{k} = ?" for k in fields)
-    try:
-        conn.execute(f"UPDATE User SET {set_clause} WHERE id = ?", list(fields.values()) + [teacher_id])
-        conn.commit()
-    except sqlite3.IntegrityError as e:
-        conn.close()
-        raise HTTPException(status_code=409, detail=f"수정 실패 (이름/내선번호/학년-반 중복 가능성): {e}")
+    conn.execute(f"UPDATE User SET {set_clause} WHERE id = ?", list(fields.values()) + [teacher_id])
+    conn.commit()
 
     row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
     conn.close()
