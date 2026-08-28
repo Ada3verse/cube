@@ -155,7 +155,7 @@ function buildHTML() {
 
   <!-- 공용 모달 (교사 불러오기 / 그룹 만들기) -->
   <div id="cw-modal-overlay" class="cw-modal-overlay cw-hidden">
-    <div class="cw-modal">
+    <div class="cw-modal" id="cw-modal">
       <div class="cw-modal-head">
         <span id="cw-modal-title">교사 선택</span>
         <button type="button" id="cw-modal-close" class="cw-close-btn" aria-label="닫기">✕</button>
@@ -490,9 +490,10 @@ function handleMentionKeydown(e) {
 }
 
 // ── 공용 모달 ─────────────────────────────────────────
-function openModal(title, bodyHTML, actionLabel, onAction) {
+function openModal(title, bodyHTML, actionLabel, onAction, { wide = false } = {}) {
   document.getElementById('cw-modal-title').textContent = title;
   document.getElementById('cw-modal-body').innerHTML = bodyHTML;
+  document.getElementById('cw-modal').classList.toggle('cw-modal-wide', wide);
   const actionBtn = document.getElementById('cw-modal-action');
   actionBtn.textContent = actionLabel;
   actionBtn.onclick = onAction;
@@ -513,9 +514,9 @@ function teacherChecklistHTML(idPrefix, preselectedIds = new Set()) {
     </label>`).join('')}</div>`;
 }
 
-function groupChecklistHTML(idPrefix, preselectedIds = new Set()) {
-  if (!directory.groups.length) return '<p class="cw-empty-msg">등록된 그룹이 없습니다.</p>';
-  return `<div class="cw-checklist">${directory.groups.map(g => `
+function groupChecklistHTML(idPrefix, groups, preselectedIds = new Set()) {
+  if (!groups.length) return '<p class="cw-empty-msg">해당하는 그룹이 없습니다.</p>';
+  return `<div class="cw-checklist">${groups.map(g => `
     <label class="cw-check-row">
       <input type="checkbox" data-type="group" data-id="${g.id}" id="${idPrefix}-g-${g.id}" ${preselectedIds.has(g.id) ? 'checked' : ''} />
       <span>#${g.name}</span>
@@ -523,17 +524,35 @@ function groupChecklistHTML(idPrefix, preselectedIds = new Set()) {
     </label>`).join('')}</div>`;
 }
 
-// 대상 불러오기: 그룹 + 교사를 함께 보여주고, 체크한 대상을 한번에 추가
+function isAdminUser(userId) {
+  return !!directory.teachers.find(t => t.id === userId)?.is_admin;
+}
+
+// 대상 불러오기: 관리자 그룹 / 전체 교사 / 내 그룹 3열로 보여주고, 체크한 대상을 한번에 추가
 async function openTargetPicker() {
   if (!directoryLoaded) await loadDirectory();
   const preselectedGroups = new Set(selectedRecipients.filter(r => r.type === 'group').map(r => r.id));
   const preselectedUsers  = new Set(selectedRecipients.filter(r => r.type === 'user').map(r => r.id));
+  const myId = getCurrentUserId();
+
+  const adminGroups = directory.groups.filter(g => isAdminUser(g.created_by));
+  const myGroups     = directory.groups.filter(g => g.created_by === myId);
 
   const body = `
-    <label class="cw-field-label">그룹</label>
-    ${groupChecklistHTML('cw-pick', preselectedGroups)}
-    <label class="cw-field-label">교사</label>
-    ${teacherChecklistHTML('cw-pick', preselectedUsers)}
+    <div class="cw-target-columns">
+      <div class="cw-target-col">
+        <label class="cw-field-label">관리자 그룹</label>
+        ${groupChecklistHTML('cw-pick-admin', adminGroups, preselectedGroups)}
+      </div>
+      <div class="cw-target-col">
+        <label class="cw-field-label">전체 교사</label>
+        ${teacherChecklistHTML('cw-pick-teacher', preselectedUsers)}
+      </div>
+      <div class="cw-target-col">
+        <label class="cw-field-label">내 그룹</label>
+        ${groupChecklistHTML('cw-pick-mine', myGroups, preselectedGroups)}
+      </div>
+    </div>
   `;
 
   openModal('대상 불러오기', body, '선택 완료', () => {
@@ -549,7 +568,7 @@ async function openTargetPicker() {
       }
     });
     closeModal();
-  });
+  }, { wide: true });
 }
 
 // 그룹 만들기: 이름 지정 + 대상 교사 선택 후 저장, 저장된 그룹은 바로 대상자로 추가됨
