@@ -244,6 +244,29 @@ button {
   background: var(--green-lighter);
 }
 
+.calendar-range-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-header .today-btn {
+  width: auto;
+  height: auto;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.section-header .today-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.section-header .today-btn:disabled:hover {
+  background: var(--bg-soft);
+}
+
 /* ---------- Calendar ---------- */
 .calendar-scroll-area {
   cursor: ns-resize;

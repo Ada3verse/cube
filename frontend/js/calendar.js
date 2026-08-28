@@ -11,6 +11,7 @@
   const wrapEl = document.getElementById("calendar-scroll-area");
   const prevBtn = document.getElementById("prev-week");
   const nextBtn = document.getElementById("next-week");
+  const todayBtn = document.getElementById("today-btn");
   const modal = document.getElementById("day-modal");
   const modalTitle = document.getElementById("modal-date-title");
   const modalBody = document.getElementById("modal-body");
@@ -26,8 +27,13 @@
   }
 
   // viewStart = 첫째 줄(1주 전)의 시작일. viewStart + 7일 = 둘째 줄(현재 주 표시 위치).
-  let viewStart = startOfWeek(new Date());
-  viewStart.setDate(viewStart.getDate() - 7);
+  function defaultViewStart() {
+    const s = startOfWeek(new Date());
+    s.setDate(s.getDate() - 7);
+    return s;
+  }
+
+  let viewStart = defaultViewStart();
 
   let announcements = [];
   let personalEvents = [];
@@ -134,6 +140,10 @@
     const focusWeekEnd = new Date(focusWeekStart);
     focusWeekEnd.setDate(focusWeekEnd.getDate() + 6);
     rangeEl.textContent = `${toDisplayDate(focusWeekStart)} - ${toDisplayDate(focusWeekEnd)}`;
+
+    if (todayBtn) {
+      todayBtn.disabled = viewStart.getTime() === defaultViewStart().getTime();
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -344,6 +354,11 @@
 
   prevBtn.addEventListener("click", () => goToWeek(-1));
   nextBtn.addEventListener("click", () => goToWeek(1));
+
+  todayBtn?.addEventListener("click", () => {
+    viewStart = defaultViewStart();
+    render();
+  });
 
   // 위로 스크롤 = 과거 주, 아래로 스크롤 = 미래 주 (한 번 스크롤 = 한 주 이동)
   const scrollTarget = wrapEl || bodyEl;
