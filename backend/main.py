@@ -68,6 +68,10 @@ class AdminStatusUpdate(BaseModel):
     is_admin: bool
 
 
+class HomeroomStatusUpdate(BaseModel):
+    is_homeroom: bool
+
+
 SCHEDULE_CATEGORIES = ["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
 
 
@@ -213,6 +217,21 @@ def update_teacher_admin_status(teacher_id: int, payload: AdminStatusUpdate):
         raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
 
     conn.execute("UPDATE User SET is_admin = ? WHERE id = ?", (int(payload.is_admin), teacher_id))
+    conn.commit()
+    row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.patch("/teachers/{teacher_id}/homeroom")
+def update_teacher_homeroom_status(teacher_id: int, payload: HomeroomStatusUpdate):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM User WHERE id = ?", (teacher_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
+
+    conn.execute("UPDATE User SET is_homeroom = ? WHERE id = ?", (int(payload.is_homeroom), teacher_id))
     conn.commit()
     row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
     conn.close()

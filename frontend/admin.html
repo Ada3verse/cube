@@ -23,7 +23,7 @@
     #teacher-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
     .grade-class-cell { white-space: nowrap; }
-    .admin-table th { background: var(--green-lighter); color: #1f4d33; padding: 10px; text-align: left; }
+    .admin-table th { background: var(--green-lighter); color: #1f4d33; padding: 10px; text-align: center; }
     .admin-table th.sortable { cursor: pointer; user-select: none; }
     .admin-table th.sortable:hover { background: var(--green-light); }
     .admin-table th.sortable .sort-arrow { display: inline-block; width: 1em; opacity: 0.5; }
@@ -38,6 +38,9 @@
     .admin-toggle-btn { padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--white); color: var(--text-muted); border: 1px solid transparent; cursor: pointer; }
     .admin-toggle-btn:hover { border-color: var(--border); }
     .admin-toggle-btn.active { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .homeroom-toggle-btn { padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--white); color: var(--text-muted); border: 1px solid transparent; cursor: pointer; min-width: 32px; }
+    .homeroom-toggle-btn:hover { border-color: var(--border); }
+    .homeroom-toggle-btn.active { background: var(--green-light); color: #1f4d33; border-color: var(--green-light); }
     .pin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; background: var(--green-light); color: #1f4d33; }
     .server-status-widget { position: fixed; bottom: 12px; left: 12px; background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.7; box-shadow: 0 4px 12px rgba(0,0,0,0.06); z-index: 100; }
     .server-status-widget b { color: var(--text); }
@@ -75,14 +78,14 @@
         <p id="users-msg" class="admin-msg"></p>
         <table class="admin-table" id="teacher-table">
           <colgroup>
-            <col style="width:110px" />
-            <col style="width:90px" />
+            <col style="width:100px" />
+            <col style="width:70px" />
             <col />
-            <col style="width:90px" />
-            <col />
-            <col style="width:160px" />
+            <col style="width:70px" />
             <col style="width:70px" />
             <col style="width:150px" />
+            <col style="width:95px" />
+            <col style="width:140px" />
           </colgroup>
           <thead>
             <tr>
@@ -230,7 +233,11 @@
           <td><input id="edit-name" value="${v.name ?? ""}" placeholder="이름" /></td>
           <td><input id="edit-department" value="${v.department ?? ""}" placeholder="부서" /></td>
           <td><input id="edit-subject" value="${v.subject ?? ""}" placeholder="과목" /></td>
-          <td><input type="checkbox" id="edit-homeroom" ${v.is_homeroom ? "checked" : ""} /></td>
+          <td>${
+            isNew
+              ? "-"
+              : `<button class="homeroom-toggle-btn ${v.is_homeroom ? "active" : ""}" onclick="event.stopPropagation(); toggleHomeroom(${v.id}, ${v.is_homeroom})">${v.is_homeroom ? "Y" : ""}</button>`
+          }</td>
           <td class="grade-class-cell">
             <input type="number" id="edit-grade" min="1" max="3" value="${v.grade ?? ""}" style="width:40px" />학년
             <input type="number" id="edit-classno" min="1" value="${v.class_no ?? ""}" style="width:40px" />반
@@ -250,7 +257,7 @@
           <td>${t.name}</td>
           <td>${t.department}</td>
           <td>${t.subject ?? "-"}</td>
-          <td>${t.is_homeroom ? "Y" : "-"}</td>
+          <td><button class="homeroom-toggle-btn ${t.is_homeroom ? "active" : ""}" onclick="event.stopPropagation(); toggleHomeroom(${t.id}, ${t.is_homeroom})">${t.is_homeroom ? "Y" : ""}</button></td>
           <td>${t.is_homeroom ? `${t.grade}학년 ${t.class_no}반` : "-"}</td>
           <td>${t.extension}</td>
           <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deleteTeacher(${t.id})">삭제</button></td>
@@ -305,7 +312,6 @@
         name: document.getElementById("edit-name").value.trim(),
         department: document.getElementById("edit-department").value.trim(),
         subject: document.getElementById("edit-subject").value.trim() || null,
-        is_homeroom: document.getElementById("edit-homeroom").checked,
         grade: document.getElementById("edit-grade").value ? Number(document.getElementById("edit-grade").value) : null,
         class_no: document.getElementById("edit-classno").value ? Number(document.getElementById("edit-classno").value) : null,
         extension: document.getElementById("edit-extension").value.trim(),
@@ -355,6 +361,16 @@
         body: JSON.stringify({ is_admin: !currentIsAdmin }),
       });
       if (!res.ok) return flashMsg("users-msg", "권한 변경 실패");
+      loadTeachers();
+    }
+
+    async function toggleHomeroom(id, currentIsHomeroom) {
+      const res = await fetch(`${API_BASE}/teachers/${id}/homeroom`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_homeroom: !currentIsHomeroom }),
+      });
+      if (!res.ok) return flashMsg("users-msg", "담임 여부 변경 실패");
       loadTeachers();
     }
 
