@@ -371,6 +371,24 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
+.status-done {
+  background: var(--green-light);
+  color: #1f4d33;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.status-pending {
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
 /* ---------- Today popup ---------- */
 .today-popup {
   position: fixed;
