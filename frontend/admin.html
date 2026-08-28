@@ -35,6 +35,11 @@
     .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; text-align: center; }
     #teacher-table-body tr:not(.edit-row) { cursor: pointer; }
     #teacher-table-body tr:not(.edit-row):hover { background: var(--bg-soft); }
+    #schedule-calendar-table td { cursor: pointer; text-align: left; }
+    #schedule-calendar-table td.empty { cursor: default; }
+    #schedule-calendar-table td:not(.empty):hover { background: var(--bg-soft); }
+    .schedule-day-num { font-weight: 600; margin-bottom: 4px; }
+    .schedule-item-badge { display: block; background: var(--green-light); color: #1f4d33; border-radius: 6px; padding: 1px 4px; font-size: 0.7rem; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .edit-row td { padding: 6px 10px; }
     .edit-row input { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; width: 100%; box-sizing: border-box; }
     .edit-row input[type="number"] { width: 50px; }
@@ -113,6 +118,19 @@
 
       <!-- ── 학사일정 ── -->
       <section id="view-schedule" class="admin-view">
+        <div class="section-header">
+          <button id="schedule-prev-month" class="btn btn-ghost icon-btn">&lt;</button>
+          <h2 id="schedule-calendar-title"></h2>
+          <button id="schedule-next-month" class="btn btn-ghost icon-btn">&gt;</button>
+        </div>
+        <table class="calendar-table" id="schedule-calendar-table">
+          <thead>
+            <tr><th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th></tr>
+          </thead>
+          <tbody id="schedule-calendar-body"></tbody>
+        </table>
+        <p style="margin-top:8px; font-size:0.85rem; color:var(--text-muted);">날짜 칸을 클릭하면 하루짜리 일정을 바로 등록할 수 있어요. 기간이 있는 일정(방학/시험기간 등)은 아래 폼을 이용하세요.</p>
+
         <div class="section-header"><h2>학사일정 등록</h2></div>
         <form id="schedule-form" class="admin-form">
           <input name="title" placeholder="제목 (예: 여름방학)" required />
@@ -424,10 +442,19 @@
     }
 
     // ── 학사일정 ──
+    let currentSchedule = [];
+    let scheduleViewYear, scheduleViewMonth;
+    let scheduleAddDate = null; // 클릭해서 빠른 등록 중인 날짜(YYYY-MM-DD) 또는 null
+
     async function loadSchedule() {
       const res = await fetch(`${API_BASE}/academic-schedule`);
-      const rows = await res.json();
-      document.getElementById("schedule-table-body").innerHTML = rows
+      currentSchedule = await res.json();
+      renderScheduleTable();
+      renderScheduleCalendar();
+    }
+
+    function renderScheduleTable() {
+      document.getElementById("schedule-table-body").innerHTML = currentSchedule
         .map(
           (s) => `
         <tr>
@@ -439,6 +466,129 @@
         )
         .join("");
     }
+
+    function pad2(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function scheduleItemsOnDate(dateStr) {
+      return currentSchedule.filter((s) => {
+        const end = s.end_date || s.start_date;
+        return dateStr >= s.start_date && dateStr <= end;
+      });
+    }
+
+    function initScheduleCalendarNav() {
+      const today = new Date();
+      scheduleViewYear = today.getFullYear();
+      scheduleViewMonth = today.getMonth();
+      document.getElementById("schedule-prev-month").addEventListener("click", () => {
+        scheduleViewMonth--;
+        if (scheduleViewMonth < 0) {
+          scheduleViewMonth = 11;
+          scheduleViewYear--;
+        }
+        renderScheduleCalendar();
+      });
+      document.getElementById("schedule-next-month").addEventListener("click", () => {
+        scheduleViewMonth++;
+        if (scheduleViewMonth > 11) {
+          scheduleViewMonth = 0;
+          scheduleViewYear++;
+        }
+        renderScheduleCalendar();
+      });
+    }
+
+    function renderScheduleCalendar() {
+      if (scheduleViewYear === undefined) return;
+      const titleEl = document.getElementById("schedule-calendar-title");
+      const bodyEl = document.getElementById("schedule-calendar-body");
+      titleEl.textContent = `${scheduleViewYear}년 ${scheduleViewMonth + 1}월`;
+
+      const firstDay = new Date(scheduleViewYear, scheduleViewMonth, 1).getDay();
+      const lastDate = new Date(scheduleViewYear, scheduleViewMonth + 1, 0).getDate();
+      const today = new Date();
+
+      bodyEl.innerHTML = "";
+      let date = 1;
+      for (let week = 0; week < 6 && date <= lastDate; week++) {
+        const row = document.createElement("tr");
+        for (let day = 0; day < 7; day++) {
+          const cell = document.createElement("td");
+          if ((week === 0 && day < firstDay) || date > lastDate) {
+            cell.classList.add("empty");
+            row.appendChild(cell);
+            continue;
+          }
+
+          const dateStr = `${scheduleViewYear}-${pad2(scheduleViewMonth + 1)}-${pad2(date)}`;
+          const isToday =
+            date === today.getDate() &&
+            scheduleViewMonth === today.getMonth() &&
+            scheduleViewYear === today.getFullYear();
+          if (isToday) cell.classList.add("today");
+
+          if (scheduleAddDate === dateStr) {
+            cell.innerHTML = `
+              <div class="schedule-day-num">${date}</div>
+              <input id="quick-add-title" placeholder="일정명" style="width:100%;font-size:0.72rem;padding:2px 4px;margin-bottom:2px;box-sizing:border-box;" />
+              <select id="quick-add-category" style="width:100%;font-size:0.68rem;margin-bottom:2px;">
+                <option value="학기">학기</option>
+                <option value="방학">방학</option>
+                <option value="시험기간">시험기간</option>
+                <option value="공휴일">공휴일</option>
+                <option value="재량휴업일">재량휴업일</option>
+                <option value="기타" selected>기타</option>
+              </select>
+              <div style="display:flex;gap:4px;">
+                <button class="btn btn-primary btn-sm" style="flex:1;padding:2px;" onclick="event.stopPropagation(); confirmQuickAdd('${dateStr}')">추가</button>
+                <button class="btn btn-ghost btn-sm" style="flex:1;padding:2px;" onclick="event.stopPropagation(); cancelQuickAdd()">취소</button>
+              </div>`;
+          } else {
+            const items = scheduleItemsOnDate(dateStr);
+            cell.innerHTML = `
+              <div class="schedule-day-num">${date}</div>
+              ${items.map((it) => `<span class="schedule-item-badge" title="${it.title}">${it.title}</span>`).join("")}`;
+            cell.addEventListener("click", () => {
+              scheduleAddDate = dateStr;
+              renderScheduleCalendar();
+            });
+          }
+
+          date++;
+          row.appendChild(cell);
+        }
+        bodyEl.appendChild(row);
+      }
+    }
+
+    function cancelQuickAdd() {
+      scheduleAddDate = null;
+      renderScheduleCalendar();
+    }
+
+    async function confirmQuickAdd(dateStr) {
+      const title = document.getElementById("quick-add-title").value.trim();
+      const category = document.getElementById("quick-add-category").value;
+      if (!title) return flashMsg("schedule-msg", "일정명을 입력하세요.");
+
+      const res = await fetch(`${API_BASE}/academic-schedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, category, start_date: dateStr, end_date: null, created_by: CURRENT_ADMIN_ID }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("schedule-msg", "등록 실패: " + (err.detail || res.status));
+      }
+
+      scheduleAddDate = null;
+      loadSchedule();
+    }
+
+    initScheduleCalendarNav();
 
     document.getElementById("schedule-form").addEventListener("submit", async (e) => {
       e.preventDefault();
