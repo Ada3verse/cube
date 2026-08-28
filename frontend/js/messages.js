@@ -1,8 +1,6 @@
 // 로그인 직후 환영 팝업 문구 (담당: ada3verse)
 // 오늘 날짜를 시드로 사용 -> 매일 다른 문구, 같은 날엔 새로고침해도 동일
 (function () {
-  const STORAGE_KEY = "cube_greeting_seen";
-
   // Date.getDay() 기준: 0=일, 1=월, 2=화, 3=수, 4=목, 5=금, 6=토
   const WEEKDAY_MESSAGES = {
     1: [
@@ -251,34 +249,10 @@
     return pickBySeed(WEEKDAY_MESSAGES[date.getDay()], date);
   }
 
-  function todayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }
-
-  function alreadyShownToday(userId) {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return false;
-      const seen = JSON.parse(raw);
-      return seen.date === todayKey() && seen.userId === userId;
-    } catch {
-      return false;
-    }
-  }
-
-  function markShownToday(userId) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: todayKey(), userId }));
-    } catch {
-      /* localStorage 사용 불가 시 무시 (매 접속마다 다시 평가됨) */
-    }
-  }
-
-  // 로그인 직후 1회(오늘 첫 로그인 시)만 중앙 팝업으로 환영 문구 표시
+  // 로그인할 때마다 매번 중앙 팝업으로 환영 문구 표시
   function showGreetingPopup(user) {
     const currentUser = user || (typeof getCurrentUser === "function" ? getCurrentUser() : null);
-    if (!currentUser || alreadyShownToday(currentUser.id)) return;
+    if (!currentUser) return;
 
     const modal = document.getElementById("greeting-modal");
     const titleEl = document.getElementById("greeting-title");
@@ -297,8 +271,6 @@
       },
       { once: true }
     );
-
-    markShownToday(currentUser.id);
   }
 
   window.showGreetingPopup = showGreetingPopup;

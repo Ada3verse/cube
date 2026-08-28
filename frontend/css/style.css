@@ -595,20 +595,6 @@ button {
   line-height: 1.4;
 }
 
-/* 같은 날짜(=같은 남은 기한) 항목 그룹 표시: 뱃지/상태는 상단에 한 번만 */
-.modal-group-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.modal-group-count {
-  margin-left: auto;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
 .modal-group-list {
   display: flex;
   flex-direction: column;

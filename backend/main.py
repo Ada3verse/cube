@@ -1,19 +1,21 @@
-import hashlib
+import logging
 import shutil
-import sqlite3
+import time
+from collections import defaultdict
 from datetime import datetime
-from pathlib import Path
 from typing import List, Literal, Optional
 
 import psutil
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "database.db"
+from database import BASE_DIR, get_connection, get_user_by_id, get_user_by_name, hash_password, verify_password
 
-app = FastAPI(title="CUBE API")
+logger = logging.getLogger("cube")
+
+app = FastAPI(title="CUBE API", debug=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,15 +26,45 @@ app.add_middleware(
 )
 
 
-def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# 예상치 못한 예외에서도 스택트레이스/쿼리 내용이 응답으로 나가지 않도록 통일 처리.
+# 실제 에러는 서버 로그에만 남긴다.
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "서버 내부 오류가 발생했습니다."})
 
 
-def hash_password(password: str) -> str:
-    # 프로토타입용 해시. 운영 전환 시 bcrypt 등으로 교체 필요.
-    return hashlib.sha256(password.encode()).hexdigest()
+# ---------- 요청자 신원 확인 (X-User-Id 헤더 기준, 로그인한 사용자의 DB 레코드로 검증) ----------
+# 이름(User.name)은 UNIQUE가 아니고 한글 등 비-ASCII 값이라 HTTP 헤더로 안전하게 못 옮기므로
+# 헤더에는 로그인 응답에 포함된 정수 id를 사용한다.
+def get_requester(x_user_id: int = Header(...)):
+    conn = get_connection()
+    user = get_user_by_id(conn, x_user_id)
+    conn.close()
+    if user is None:
+        raise HTTPException(status_code=401, detail="인증이 필요합니다.")
+    return user
+
+
+def require_admin(user=Depends(get_requester)):
+    if not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="관리자만 접근할 수 있습니다.")
+    return user
+
+
+# ---------- 로그인 rate limit (같은 IP, 1분에 10회 초과 시 429) ----------
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_MAX_ATTEMPTS = 10
+_login_attempts: dict = defaultdict(list)
+
+
+def check_login_rate_limit(ip: str):
+    now = time.time()
+    attempts = _login_attempts[ip]
+    attempts[:] = [t for t in attempts if now - t < RATE_LIMIT_WINDOW_SECONDS]
+    if len(attempts) >= RATE_LIMIT_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.")
+    attempts.append(now)
 
 
 class LoginRequest(BaseModel):
@@ -62,6 +94,12 @@ class TeacherUpdate(BaseModel):
     grade: Optional[int] = Field(default=None, ge=1, le=3)
     class_no: Optional[int] = None
     extension: Optional[str] = None
+
+
+# UPDATE User SET 절에 들어갈 수 있는 컬럼명 화이트리스트 (TeacherUpdate 필드와 동일하게 유지)
+ALLOWED_TEACHER_UPDATE_FIELDS = {
+    "name", "department", "subject", "is_homeroom", "grade", "class_no", "extension"
+}
 
 
 class AdminStatusUpdate(BaseModel):
@@ -142,16 +180,15 @@ def get_server_status():
 # ---------- 로그인 ----------
 # 아이디: 교사 이름(User.name, UNIQUE). 초기 비밀번호: 123456 (seed.py와 동일한 해시 방식)
 @app.post("/login")
-def login(payload: LoginRequest):
+def login(payload: LoginRequest, request: Request):
+    check_login_rate_limit(request.client.host if request.client else "unknown")
+
     conn = get_connection()
-    row = conn.execute(
-        "SELECT id, name, is_admin, department, subject, password_hash "
-        "FROM User WHERE name = ? AND is_deleted = 0",
-        (payload.name,),
-    ).fetchone()
+    row = get_user_by_name(conn, payload.name)
     conn.close()
 
-    if row is None or row["password_hash"] != hash_password(payload.password):
+    # 비밀번호 비교는 서버(bcrypt.checkpw)에서만 수행. 사용자 존재 여부와 무관하게 동일한 에러만 반환.
+    if row is None or not verify_password(payload.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="이름 또는 비밀번호가 올바르지 않습니다.")
 
     return {
@@ -183,7 +220,7 @@ TEACHER_SELECT = (
 
 # ---------- 관리자: 교사 등록/수정/권한관리 (담당: yamako8119-ai) ----------
 @app.post("/teachers", status_code=201)
-def create_teacher(payload: TeacherCreate):
+def create_teacher(payload: TeacherCreate, _admin=Depends(require_admin)):
     conn = get_connection()
     cur = conn.execute(
         """INSERT INTO User (name, password_hash, is_admin, department, subject, is_homeroom, grade, class_no, extension)
@@ -209,7 +246,7 @@ def create_teacher(payload: TeacherCreate):
 
 
 @app.put("/teachers/{teacher_id}")
-def update_teacher(teacher_id: int, payload: TeacherUpdate):
+def update_teacher(teacher_id: int, payload: TeacherUpdate, _admin=Depends(require_admin)):
     fields = payload.model_dump(exclude_unset=True)
     if not fields:
         raise HTTPException(status_code=400, detail="수정할 내용이 없습니다.")
@@ -222,6 +259,11 @@ def update_teacher(teacher_id: int, payload: TeacherUpdate):
         conn.close()
         raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
 
+    # 컬럼명은 사용자 입력이 아니라 화이트리스트로 고정 (f-string은 값이 아닌 컬럼명 조합에만 사용)
+    if not set(fields).issubset(ALLOWED_TEACHER_UPDATE_FIELDS):
+        conn.close()
+        raise HTTPException(status_code=400, detail="허용되지 않은 필드가 포함되어 있습니다.")
+
     set_clause = ", ".join(f"{k} = ?" for k in fields)
     conn.execute(f"UPDATE User SET {set_clause} WHERE id = ?", list(fields.values()) + [teacher_id])
     conn.commit()
@@ -232,7 +274,7 @@ def update_teacher(teacher_id: int, payload: TeacherUpdate):
 
 
 @app.patch("/teachers/{teacher_id}/admin")
-def update_teacher_admin_status(teacher_id: int, payload: AdminStatusUpdate):
+def update_teacher_admin_status(teacher_id: int, payload: AdminStatusUpdate, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM User WHERE id = ?", (teacher_id,)).fetchone()
     if existing is None:
@@ -247,7 +289,7 @@ def update_teacher_admin_status(teacher_id: int, payload: AdminStatusUpdate):
 
 
 @app.patch("/teachers/{teacher_id}/homeroom")
-def update_teacher_homeroom_status(teacher_id: int, payload: HomeroomStatusUpdate):
+def update_teacher_homeroom_status(teacher_id: int, payload: HomeroomStatusUpdate, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM User WHERE id = ?", (teacher_id,)).fetchone()
     if existing is None:
@@ -262,7 +304,7 @@ def update_teacher_homeroom_status(teacher_id: int, payload: HomeroomStatusUpdat
 
 
 @app.delete("/teachers/{teacher_id}", status_code=204)
-def delete_teacher(teacher_id: int):
+def delete_teacher(teacher_id: int, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute(
         "SELECT id FROM User WHERE id = ? AND is_deleted = 0", (teacher_id,)
@@ -278,7 +320,7 @@ def delete_teacher(teacher_id: int):
 
 
 @app.get("/teachers/trash")
-def get_deleted_teachers():
+def get_deleted_teachers(_admin=Depends(require_admin)):
     conn = get_connection()
     rows = conn.execute(
         "SELECT id, name, department, subject, extension "
@@ -289,7 +331,7 @@ def get_deleted_teachers():
 
 
 @app.post("/teachers/{teacher_id}/restore")
-def restore_teacher(teacher_id: int):
+def restore_teacher(teacher_id: int, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute(
         "SELECT id FROM User WHERE id = ? AND is_deleted = 1", (teacher_id,)
@@ -318,7 +360,7 @@ def get_academic_schedule():
 
 
 @app.post("/academic-schedule", status_code=201)
-def create_academic_schedule(payload: ScheduleCreate):
+def create_academic_schedule(payload: ScheduleCreate, _admin=Depends(require_admin)):
     conn = get_connection()
     cur = conn.execute(
         "INSERT INTO AcademicSchedule (title, category, start_date, end_date, created_by) "
@@ -337,7 +379,7 @@ def create_academic_schedule(payload: ScheduleCreate):
 
 
 @app.delete("/academic-schedule/{schedule_id}", status_code=204)
-def delete_academic_schedule(schedule_id: int):
+def delete_academic_schedule(schedule_id: int, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM AcademicSchedule WHERE id = ?", (schedule_id,)).fetchone()
     if existing is None:
@@ -397,7 +439,7 @@ def create_group(payload: GroupCreate):
 
 
 @app.put("/groups/{group_id}")
-def update_group(group_id: int, payload: GroupUpdate):
+def update_group(group_id: int, payload: GroupUpdate, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM Groups WHERE id = ?", (group_id,)).fetchone()
     if existing is None:
@@ -415,7 +457,7 @@ def update_group(group_id: int, payload: GroupUpdate):
 
 
 @app.delete("/groups/{group_id}", status_code=204)
-def delete_group(group_id: int):
+def delete_group(group_id: int, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM Groups WHERE id = ?", (group_id,)).fetchone()
     if existing is None:
@@ -467,7 +509,7 @@ def add_group_member(group_id: int, payload: GroupMemberAdd):
 
 
 @app.delete("/groups/{group_id}/members/{user_id}", status_code=204)
-def remove_group_member(group_id: int, user_id: int):
+def remove_group_member(group_id: int, user_id: int, _admin=Depends(require_admin)):
     conn = get_connection()
     conn.execute("DELETE FROM Group_Member WHERE group_id = ? AND user_id = ?", (group_id, user_id))
     conn.commit()
@@ -623,7 +665,7 @@ def complete_notice(notice_id: int, payload: CompleteNotice):
 
 # ---------- 관리자: 공지사항 관리 (담당: yamako8119-ai) ----------
 @app.patch("/notices/{notice_id}/pin")
-def update_notice_pin(notice_id: int, payload: PinUpdate):
+def update_notice_pin(notice_id: int, payload: PinUpdate, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM Announcement WHERE id = ?", (notice_id,)).fetchone()
     if existing is None:
@@ -645,7 +687,7 @@ def update_notice_pin(notice_id: int, payload: PinUpdate):
 
 
 @app.delete("/notices/{notice_id}", status_code=204)
-def delete_notice(notice_id: int):
+def delete_notice(notice_id: int, _admin=Depends(require_admin)):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM Announcement WHERE id = ?", (notice_id,)).fetchone()
     if existing is None:
@@ -660,7 +702,11 @@ def delete_notice(notice_id: int):
 
 # ---------- 개인 일정 (담당: ada3verse) ----------
 @app.get("/personal-events")
-def get_personal_events(teacher_name: str):
+def get_personal_events(teacher_name: str, requester=Depends(get_requester)):
+    # 본인 일정만 조회 가능 (IDOR 방지) - 관리자도 예외 없음
+    if requester["name"] != teacher_name:
+        raise HTTPException(status_code=403, detail="본인의 개인 일정만 조회할 수 있습니다.")
+
     conn = get_connection()
     rows = conn.execute(
         "SELECT id, teacher_name, title, date, memo, created_at "
@@ -672,7 +718,11 @@ def get_personal_events(teacher_name: str):
 
 
 @app.post("/personal-events", status_code=201)
-def create_personal_event(payload: PersonalEventCreate):
+def create_personal_event(payload: PersonalEventCreate, requester=Depends(get_requester)):
+    # 본인 이름으로만 개인 일정을 생성할 수 있음
+    if requester["name"] != payload.teacher_name:
+        raise HTTPException(status_code=403, detail="본인 이름으로만 개인 일정을 등록할 수 있습니다.")
+
     conn = get_connection()
     cur = conn.execute(
         "INSERT INTO PersonalEvent (teacher_name, title, date, memo) VALUES (?, ?, ?, ?)",
@@ -689,12 +739,19 @@ def create_personal_event(payload: PersonalEventCreate):
 
 
 @app.delete("/personal-events/{event_id}", status_code=204)
-def delete_personal_event(event_id: int):
+def delete_personal_event(event_id: int, requester=Depends(get_requester)):
     conn = get_connection()
-    existing = conn.execute("SELECT id FROM PersonalEvent WHERE id = ?", (event_id,)).fetchone()
+    existing = conn.execute(
+        "SELECT id, teacher_name FROM PersonalEvent WHERE id = ?", (event_id,)
+    ).fetchone()
     if existing is None:
         conn.close()
         raise HTTPException(status_code=404, detail="개인 일정을 찾을 수 없습니다.")
+
+    # 본인 소유 일정인지 서버에서 확인 (IDOR 방지) - 다른 교사의 일정은 삭제 불가
+    if existing["teacher_name"] != requester["name"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="본인의 개인 일정만 삭제할 수 있습니다.")
 
     conn.execute("DELETE FROM PersonalEvent WHERE id = ?", (event_id,))
     conn.commit()

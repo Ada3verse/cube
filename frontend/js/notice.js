@@ -17,6 +17,17 @@ function calcDday(deadline) {
   return `D+${Math.abs(diffDays)}`;
 }
 
+// XSS 방지: 공지 제목/멘션 등 사용자 입력값을 DOM에 넣기 전 이스케이프
+function escapeHtml(value) {
+  if (value == null) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function extractMentions(text) {
   const matches = (text || "").match(/@[가-힣a-zA-Z0-9_]+/g) || [];
   return matches.map((m) => m.slice(1));
@@ -204,8 +215,8 @@ function renderNoticeList() {
       (n) => `
       <li class="notice-item">
         <span class="notice-dday">${calcDday(n.deadline)}</span>
-        <span class="notice-title">${n.title}</span>
-        ${n.mentionedTeachers.map((t) => `<span class="notice-mention">@${t}</span>`).join("")}
+        <span class="notice-title">${escapeHtml(n.title)}</span>
+        ${n.mentionedTeachers.map((t) => `<span class="notice-mention">@${escapeHtml(t)}</span>`).join("")}
       </li>`
     )
     .join("");

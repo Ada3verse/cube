@@ -6,6 +6,21 @@
   const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
   const SCROLL_DEBOUNCE_MS = 300;
 
+  // 시연용 더미 데이터 (API 결과에 합쳐서 표시, status는 데모용으로 고정값 사용)
+  const DUMMY_ANNOUNCEMENTS = [
+    { id: "dummy-1", title: "2학기 방과후학교 강사 모집", deadline: "2026-09-05", target_group: null, status: "임박" },
+    { id: "dummy-2", title: "1학년 학부모 상담 주간 시작", deadline: "2026-09-08", target_group: null, status: "진행중" },
+    { id: "dummy-3", title: "중간고사 일정 확정 및 공지", deadline: "2026-09-12", target_group: null, status: "예정" },
+    { id: "dummy-4", title: "수련활동 동의서 제출 마감", deadline: "2026-09-12", target_group: null, status: "임박" },
+  ];
+
+  const DUMMY_PERSONAL_EVENTS = [
+    { id: "dummy-p1", title: "교과협의회 준비자료 출력", date: "2026-09-05", memo: "3교시 전까지 완료" },
+    { id: "dummy-p2", title: "진로상담 학생 면담 일정 확인", date: "2026-09-05", memo: "5, 6교시 예약" },
+    { id: "dummy-p3", title: "담임 학급 좌석 배치 변경", date: "2026-09-12", memo: "학기 초 규정 참고" },
+    { id: "dummy-p4", title: "학교생활기록부 초안 검토", date: "2026-09-12", memo: "교무부장 검토 전 제출 필요" },
+  ];
+
   const rangeEl = document.getElementById("calendar-range");
   const bodyEl = document.getElementById("calendar-body");
   const wrapEl = document.getElementById("calendar-scroll-area");
@@ -43,6 +58,21 @@
   function getTeacherName() {
     const user = typeof getCurrentUser === "function" ? getCurrentUser() : null;
     return user ? user.name : null;
+  }
+
+  function getAuthHeader() {
+    return typeof authHeader === "function" ? authHeader() : {};
+  }
+
+  // XSS 방지: 공지/개인 일정 제목·내용·메모를 DOM에 넣기 전 이스케이프
+  function escapeHtml(value) {
+    if (value == null) return "";
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
   function toDateKey(d) {
@@ -90,39 +120,41 @@
   }
 
   async function loadAnnouncements() {
+    let apiAnnouncements = [];
     try {
       const res = await fetch(`${API_BASE}/notices`);
       if (!res.ok) throw new Error("요청 실패");
       const all = await res.json();
 
       const user = typeof getCurrentUser === "function" ? getCurrentUser() : null;
-      announcements = all.filter((a) => {
+      apiAnnouncements = all.filter((a) => {
         if (!a.deadline) return false; // 캘린더에는 마감일 있는 항목만 표시
         if (!a.target_group) return true; // 전체 공개
         return !!user && a.target_group === user.department;
       });
     } catch {
-      announcements = [];
+      apiAnnouncements = [];
     }
+    announcements = apiAnnouncements.concat(DUMMY_ANNOUNCEMENTS);
     render();
   }
 
   async function loadPersonalEvents() {
     const teacherName = getTeacherName();
-    if (!teacherName) {
-      personalEvents = [];
-      render();
-      return;
+    let apiPersonalEvents = [];
+    if (teacherName) {
+      try {
+        const res = await fetch(
+          `${API_BASE}/personal-events?teacher_name=${encodeURIComponent(teacherName)}`,
+          { headers: { ...getAuthHeader() } }
+        );
+        if (!res.ok) throw new Error("요청 실패");
+        apiPersonalEvents = await res.json();
+      } catch {
+        apiPersonalEvents = [];
+      }
     }
-    try {
-      const res = await fetch(
-        `${API_BASE}/personal-events?teacher_name=${encodeURIComponent(teacherName)}`
-      );
-      if (!res.ok) throw new Error("요청 실패");
-      personalEvents = await res.json();
-    } catch {
-      personalEvents = [];
-    }
+    personalEvents = apiPersonalEvents.concat(DUMMY_PERSONAL_EVENTS);
     render();
   }
 
@@ -204,25 +236,22 @@
       return `<p class="modal-empty-small">공유 일정이 없습니다.</p>`;
     }
 
-    // 같은 날짜 = 같은 마감일/남은 기한이므로 뱃지·상태는 그룹 상단에 한 번만 표시
-    const diff = diffDays(dateKey);
-    const status = statusTag(dateKey);
-
     return `
-      <div class="modal-group-header">
-        <span class="dday-badge dday-${urgency(diff)}">${ddayLabel(diff)}</span>
-        <span class="status-tag status-tag-${status}">${status}</span>
-        <span class="modal-group-count">${items.length}건</span>
-      </div>
       <div class="modal-group-list">
         ${items
-          .map(
-            (a) => `
+          .map((a) => {
+            const diff = diffDays(a.deadline);
+            const status = a.status || statusTag(a.deadline);
+            return `
           <div class="modal-item">
-            <div class="modal-item-title">${a.title}</div>
-            ${a.content ? `<div class="modal-item-content">${a.content}</div>` : ""}
-          </div>`
-          )
+            <div class="modal-item-top">
+              <span class="dday-badge dday-${urgency(diff)}">${ddayLabel(diff)}</span>
+              <span class="status-tag status-tag-${status}">${status}</span>
+            </div>
+            <div class="modal-item-title">${escapeHtml(a.title)}</div>
+            ${a.content ? `<div class="modal-item-content">${escapeHtml(a.content)}</div>` : ""}
+          </div>`;
+          })
           .join("")}
       </div>`;
   }
@@ -237,8 +266,8 @@
               (p) => `
           <div class="personal-event-item" data-id="${p.id}">
             <div class="personal-event-text">
-              <div class="personal-event-title">${p.title}</div>
-              ${p.memo ? `<div class="personal-event-memo">${p.memo}</div>` : ""}
+              <div class="personal-event-title">${escapeHtml(p.title)}</div>
+              ${p.memo ? `<div class="personal-event-memo">${escapeHtml(p.memo)}</div>` : ""}
             </div>
             <button class="personal-event-delete" data-id="${p.id}" title="삭제">&times;</button>
           </div>`
@@ -311,7 +340,7 @@
     try {
       await fetch(`${API_BASE}/personal-events`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ teacher_name: teacherName, title, date: dateKey, memo: memo || null }),
       });
     } catch {
@@ -323,8 +352,13 @@
   }
 
   async function deletePersonalEvent(id) {
+    if (String(id).startsWith("dummy-")) return; // 시연용 더미 항목은 삭제 대상 아님
+
     try {
-      await fetch(`${API_BASE}/personal-events/${id}`, { method: "DELETE" });
+      await fetch(`${API_BASE}/personal-events/${id}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeader() },
+      });
     } catch {
       /* 네트워크 오류 시 조용히 무시 (프로토타입) */
     }

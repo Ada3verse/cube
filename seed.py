@@ -5,10 +5,11 @@
 - 교사 30명 + 관리자 1명
 """
 
-import hashlib
 import random
 import sqlite3
 from datetime import datetime, timedelta
+
+import bcrypt
 
 random.seed(42)
 
@@ -21,7 +22,7 @@ GIVEN = [
 DEPARTMENTS = ["교무부", "연구부", "과학정보부", "창의체험부", "생활안전부"]
 SUBJECTS = ["국어", "영어", "수학", "과학", "정보", "사회", "도덕", "음악", "미술", "체육", "기술가정"]
 
-DEFAULT_PASSWORD_HASH = hashlib.sha256("123456".encode()).hexdigest()
+DEFAULT_PASSWORD_HASH = bcrypt.hashpw("123456".encode(), bcrypt.gensalt()).decode()
 
 conn = sqlite3.connect("database.db")
 cur = conn.cursor()

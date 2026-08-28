@@ -19,6 +19,13 @@ function clearCurrentUser() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
+// 관리자 전용/본인 소유 확인이 필요한 API 호출 시 요청자 식별용 헤더.
+// 이름은 중복 가능 + 비-ASCII라 헤더로 못 옮기므로 로그인 응답의 정수 id를 사용한다.
+function authHeader() {
+  const user = getCurrentUser();
+  return user ? { "X-User-Id": String(user.id) } : {};
+}
+
 function showApp(user) {
   document.getElementById("login-screen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
