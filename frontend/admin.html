@@ -71,9 +71,8 @@
         <table class="admin-table">
           <thead>
             <tr>
-              <th class="sortable" data-sort="id">ID <span class="sort-arrow"></span></th>
-              <th class="sortable" data-sort="name">이름 <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="is_admin">권한 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="name">이름 <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="department">부서 <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="subject">과목 <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="is_homeroom">담임 <span class="sort-arrow"></span></th>
@@ -208,13 +207,12 @@
       const v = t || { id: null, name: "", is_admin: false, department: "", subject: "", is_homeroom: false, grade: "", class_no: "", extension: "" };
       return `
         <tr class="edit-row">
-          <td>${isNew ? "-" : v.id}</td>
-          <td><input id="edit-name" value="${v.name ?? ""}" placeholder="이름" /></td>
           <td>${
             isNew
               ? "-"
               : `<button class="admin-toggle-btn ${v.is_admin ? "active" : ""}" onclick="event.stopPropagation(); toggleAdmin(${v.id}, ${v.is_admin})">관리자</button>`
           }</td>
+          <td><input id="edit-name" value="${v.name ?? ""}" placeholder="이름" /></td>
           <td><input id="edit-department" value="${v.department ?? ""}" placeholder="부서" /></td>
           <td><input id="edit-subject" value="${v.subject ?? ""}" placeholder="과목" /></td>
           <td><input type="checkbox" id="edit-homeroom" ${v.is_homeroom ? "checked" : ""} /></td>
@@ -233,9 +231,8 @@
     function renderDisplayRow(t) {
       return `
         <tr onclick="startEditTeacher(${t.id})">
-          <td>${t.id}</td>
-          <td>${t.name}</td>
           <td><button class="admin-toggle-btn ${t.is_admin ? "active" : ""}" onclick="event.stopPropagation(); toggleAdmin(${t.id}, ${t.is_admin})">관리자</button></td>
+          <td>${t.name}</td>
           <td>${t.department}</td>
           <td>${t.subject ?? "-"}</td>
           <td>${t.is_homeroom ? "Y" : "-"}</td>
