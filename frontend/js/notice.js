@@ -19,16 +19,30 @@ function extractMentions(text) {
   return matches.map((m) => m.slice(1));
 }
 
-function createNotice({ title, content, deadline, mentionedTeachers = [] }) {
+function createNotice({
+  title,
+  content,
+  deadline,
+  author_id = null,
+  target_group = null,
+  mentionedTeachers = [],
+}) {
+  const now = new Date().toISOString();
   const notice = {
     id: Date.now(),
     title,
     content,
+    author_id,
+    target_group,
     deadline,
+    is_pinned: 0,
+    is_deleted: 0,
+    // Announcement 테이블에는 없는 클라이언트 전용 필드 (Notification 대상자 표시용)
     mentionedTeachers: mentionedTeachers.length
       ? mentionedTeachers
       : extractMentions(content),
-    created_at: new Date().toISOString(),
+    created_at: now,
+    updated_at: now,
   };
   notices.push(notice);
   return notice;
