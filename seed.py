@@ -5,6 +5,7 @@
 - 교사 30명 + 관리자 1명
 """
 
+import hashlib
 import random
 import sqlite3
 from datetime import datetime, timedelta
@@ -20,6 +21,8 @@ GIVEN = [
 DEPARTMENTS = ["교무부", "연구부", "과학정보부", "창의체험부", "생활안전부"]
 SUBJECTS = ["국어", "영어", "수학", "과학", "정보", "사회", "도덕", "음악", "미술", "체육", "기술가정"]
 
+DEFAULT_PASSWORD_HASH = hashlib.sha256("123456".encode()).hexdigest()
+
 conn = sqlite3.connect("database.db")
 cur = conn.cursor()
 
@@ -28,28 +31,30 @@ for table in ["Group_Member", "Groups", "Completion", "Notification", "Announcem
     cur.execute(f"DELETE FROM {table}")
     cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
 
-# ── User: 관리자 1명 + 교사 30명 ─────────────────────────────
+# ── User: 관리자 1명 + 교사 30명 (아이디 = 이름, 초기 비밀번호 = 123456) ──
+all_name_combos = [s + g for s in SURNAMES for g in GIVEN]
+random.shuffle(all_name_combos)
+teacher_names = all_name_combos[:30]
+
 users = []
-users.append(("정교장", "admin@school.kr", "admin"))  # id 1
-for i in range(30):
-    name = random.choice(SURNAMES) + random.choice(GIVEN)
-    email = f"teacher{i+1:02d}@school.kr"
-    users.append((name, email, "teacher"))
+users.append(("정교장", "admin"))  # id 1
+for name in teacher_names:
+    users.append((name, "teacher"))
 
 extensions = random.sample(range(1001, 1100), k=len(users))
 
 user_ids = {}
-for (name, email, role), ext in zip(users, extensions):
+for (name, role), ext in zip(users, extensions):
     dept = random.choice(DEPARTMENTS)
     subject = None if role == "admin" else random.choice(SUBJECTS)
     cur.execute(
-        "INSERT INTO User (name, email, password_hash, role, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (name, email, "dummy_hash_for_prototype", role, dept, subject, str(ext)),
+        "INSERT INTO User (name, password_hash, role, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, DEFAULT_PASSWORD_HASH, role, dept, subject, str(ext)),
     )
-    user_ids[email] = cur.lastrowid
+    user_ids[name] = cur.lastrowid
 
-teacher_ids = [uid for email, uid in user_ids.items() if email != "admin@school.kr"]
-admin_id = user_ids["admin@school.kr"]
+teacher_ids = [uid for name, uid in user_ids.items() if name != "정교장"]
+admin_id = user_ids["정교장"]
 
 # ── 담임 배정: 학년(1~3) x 반(1~8) 중 중복 없이 랜덤 배정 ────────
 GRADES = [1, 2, 3]
@@ -94,10 +99,7 @@ for title, type_, start_at, end_at, location, target_group in events:
 
 # ── Notification: 대상 그룹에 맞는 교사들에게 알림 생성 ─────────
 for event_id, type_, target_group in event_ids:
-    recipients = [
-        uid for email, uid in user_ids.items()
-        if email != "admin@school.kr"
-    ]
+    recipients = list(teacher_ids)
     if target_group:
         recipients = [uid for uid in recipients if True]  # group_name 매칭은 조회 시 처리, 시드는 전체 대상 유지
     recipients = random.sample(recipients, k=random.randint(15, len(teacher_ids)))
