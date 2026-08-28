@@ -49,6 +49,20 @@ for name, email, role in users:
 teacher_ids = [uid for email, uid in user_ids.items() if email != "admin@school.kr"]
 admin_id = user_ids["admin@school.kr"]
 
+# ── 담임 배정: 학년(1~3) x 반(1~8) 중 중복 없이 랜덤 배정 ────────
+GRADES = [1, 2, 3]
+CLASSES_PER_GRADE = 8
+all_slots = [(g, c) for g in GRADES for c in range(1, CLASSES_PER_GRADE + 1)]
+random.shuffle(all_slots)
+
+HOMEROOM_COUNT = 18
+homeroom_teachers = random.sample(teacher_ids, k=HOMEROOM_COUNT)
+for uid, (grade, class_no) in zip(homeroom_teachers, all_slots[:HOMEROOM_COUNT]):
+    cur.execute(
+        "UPDATE User SET is_homeroom = 1, grade = ?, class_no = ? WHERE id = ?",
+        (grade, class_no, uid),
+    )
+
 # ── Event: 8~9월 학사일정 ────────────────────────────────────
 events = [
     ("2학기 개학식", "activity", "2026-08-18T09:00:00", "2026-08-18T10:00:00", "강당", None),

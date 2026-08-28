@@ -7,7 +7,11 @@ CREATE TABLE User (
     role          TEXT NOT NULL CHECK (role IN ('teacher', 'admin')) DEFAULT 'teacher',
     department    TEXT NOT NULL CHECK (department IN ('교무부', '연구부', '과학정보부', '창의체험부', '생활안전부')),
     subject       TEXT,                          -- 담당 과목 (국어/영어/수학/과학/정보/사회 등), 없으면 NULL
-    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    is_homeroom   INTEGER NOT NULL DEFAULT 0,     -- 담임 여부
+    grade         INTEGER CHECK (grade IS NULL OR grade BETWEEN 1 AND 3),  -- 담임 학년, 담임 아니면 NULL
+    class_no      INTEGER,                        -- 담임 반, 담임 아니면 NULL
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (grade, class_no)                       -- 한 반에 담임은 한 명 (NULL끼리는 중복 허용됨)
 );
 
 -- Event: 일정 (회의/행사/제출마감)
