@@ -37,7 +37,9 @@
     #teacher-table-body tr:not(.edit-row):hover { background: var(--bg-soft); }
     .schedule-layout { display: flex; gap: 16px; align-items: flex-start; }
     .schedule-category-panel { display: flex; flex-direction: column; gap: 6px; width: 100px; flex-shrink: 0; }
-    .schedule-category-label { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px; }
+    .schedule-category-label { height: 42px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 1.05rem; font-weight: 700; color: #1f4d33; background: var(--green-lighter); border-radius: 10px; box-sizing: border-box; }
+    .quick-add-input { width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 4px; font-size: 0.78rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft); color: var(--text); transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease; }
+    .quick-add-input:focus { outline: none; border-color: var(--mint-dark); background: var(--white); box-shadow: 0 0 0 3px rgba(111, 179, 184, 0.18); }
     .category-select-btn { border: 2px solid transparent; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; font-weight: 700; color: #fff; background: var(--cat-color); cursor: pointer; text-align: left; opacity: 0.5; }
     .category-select-btn:hover { opacity: 0.8; }
     .category-select-btn.active { opacity: 1; border-color: var(--text); }
@@ -536,7 +538,7 @@
           if (scheduleAddDate === dateStr) {
             cell.innerHTML = `
               <div class="schedule-day-num">${date}</div>
-              <input id="quick-add-title" placeholder="일정명" style="width:100%;font-size:0.72rem;padding:2px 4px;margin-bottom:2px;box-sizing:border-box;" />
+              <input id="quick-add-title" class="quick-add-input" placeholder="일정명" />
               <div style="display:flex;gap:4px;">
                 <button class="btn btn-primary btn-sm" style="flex:1;padding:2px;" onclick="event.stopPropagation(); confirmQuickAdd('${dateStr}')">추가</button>
                 <button class="btn btn-ghost btn-sm" style="flex:1;padding:2px;" onclick="event.stopPropagation(); cancelQuickAdd()">취소</button>
