@@ -83,6 +83,14 @@ class PinUpdate(BaseModel):
     is_pinned: bool
 
 
+class NoticeCreate(BaseModel):
+    title: str
+    content: Optional[str] = None
+    deadline: Optional[str] = None
+    author_id: int
+    target_group: Optional[str] = None
+
+
 @app.get("/")
 def read_root():
     return {"message": "CUBE API 서버가 실행 중입니다."}
@@ -294,7 +302,31 @@ def create_academic_schedule(payload: ScheduleCreate):
     return dict(row)
 
 
-# ---------- 공지 ----------
+# ---------- 공지 (담당: hbn2814) ----------
+@app.post("/notices", status_code=201)
+def create_notice(payload: NoticeCreate):
+    conn = get_connection()
+    author = conn.execute("SELECT id FROM User WHERE id = ?", (payload.author_id,)).fetchone()
+    if author is None:
+        conn.close()
+        raise HTTPException(status_code=400, detail="존재하지 않는 작성자입니다.")
+
+    cur = conn.execute(
+        "INSERT INTO Announcement (title, content, author_id, target_group, deadline) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (payload.title, payload.content, payload.author_id, payload.target_group, payload.deadline),
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    row = conn.execute(
+        "SELECT id, title, content, deadline, target_group, is_pinned, created_at "
+        "FROM Announcement WHERE id = ?",
+        (new_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row)
+
+
 @app.get("/notices")
 def get_notices():
     conn = get_connection()
