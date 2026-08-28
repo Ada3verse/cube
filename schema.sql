@@ -1,11 +1,12 @@
--- User: 구성원
+-- User: 구성원 (교사 전용, 학생 없음)
 CREATE TABLE User (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL,
     email         TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role          TEXT NOT NULL CHECK (role IN ('student', 'teacher', 'admin')) DEFAULT 'student',
-    group_name    TEXT,                          -- 소속 (학년/반/부서), 없으면 NULL
+    role          TEXT NOT NULL CHECK (role IN ('teacher', 'admin')) DEFAULT 'teacher',
+    department    TEXT NOT NULL CHECK (department IN ('교무부', '연구부', '과학정보부', '창의체험부', '생활안전부')),
+    subject       TEXT,                          -- 담당 과목 (국어/영어/수학/과학/정보/사회 등), 없으면 NULL
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

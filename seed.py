@@ -17,7 +17,8 @@ GIVEN = [
     "유진", "은서", "현우", "채원", "도윤", "소율", "우진", "나윤", "시우", "지안",
     "준서", "예은", "민서", "재원", "다연", "성민", "혜원", "동현", "가은", "태윤",
 ]
-DEPARTMENTS = ["국어부", "수학부", "영어부", "과학부", "사회부", "체육부", "예술부", "상담부", "행정실"]
+DEPARTMENTS = ["교무부", "연구부", "과학정보부", "창의체험부", "생활안전부"]
+SUBJECTS = ["국어", "영어", "수학", "과학", "정보", "사회", "도덕", "음악", "미술", "체육", "기술가정"]
 
 conn = sqlite3.connect("database.db")
 cur = conn.cursor()
@@ -37,10 +38,11 @@ for i in range(30):
 
 user_ids = {}
 for name, email, role in users:
-    dept = random.choice(DEPARTMENTS) if role == "teacher" else "행정실"
+    dept = random.choice(DEPARTMENTS)
+    subject = None if role == "admin" else random.choice(SUBJECTS)
     cur.execute(
-        "INSERT INTO User (name, email, password_hash, role, group_name) VALUES (?, ?, ?, ?, ?)",
-        (name, email, "dummy_hash_for_prototype", role, dept),
+        "INSERT INTO User (name, email, password_hash, role, department, subject) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, email, "dummy_hash_for_prototype", role, dept, subject),
     )
     user_ids[email] = cur.lastrowid
 
@@ -55,8 +57,8 @@ events = [
     ("수행평가 계획서 제출", "deadline", "2026-08-25T18:00:00", None, None, None),
     ("학부모 상담주간 안내", "activity", "2026-08-24T00:00:00", "2026-08-28T00:00:00", "각 교실", None),
     ("체육대회", "activity", "2026-09-04T09:00:00", "2026-09-04T15:00:00", "운동장", None),
-    ("1차 지필고사 출제 마감", "deadline", "2026-09-08T18:00:00", None, None, "수학부"),
-    ("교과협의회", "meeting", "2026-09-10T15:00:00", "2026-09-10T16:00:00", "교과실", "국어부"),
+    ("1차 지필고사 출제 마감", "deadline", "2026-09-08T18:00:00", None, None, "수학"),
+    ("교과협의회", "meeting", "2026-09-10T15:00:00", "2026-09-10T16:00:00", "교과실", "국어"),
     ("공개수업 주간", "activity", "2026-09-14T00:00:00", "2026-09-18T00:00:00", "각 교실", None),
     ("생활기록부 1차 점검 마감", "deadline", "2026-09-19T18:00:00", None, None, None),
     ("추석 연휴 전 안전교육", "meeting", "2026-09-22T08:30:00", "2026-09-22T09:00:00", "강당", None),
@@ -109,7 +111,7 @@ announcements = [
     ("2학기 교과서 반납 안내", "미사용 교과서는 행정실로 반납해주세요.", None, "2026-08-29", 1),
     ("여름방학 중 시설 점검 결과 공유", "냉방기 점검이 완료되었습니다.", None, None, 0),
     ("학부모 상담주간 신청서 제출", "상담 가능 시간을 신청서에 기재해 제출해주세요. @김민준 @이서연 확인 부탁드립니다.", None, "2026-08-22", 1),
-    ("체육대회 물품 신청", "각 반별 필요 물품을 신청해주세요.", "체육부", "2026-08-30", 0),
+    ("체육대회 물품 신청", "각 반별 필요 물품을 신청해주세요.", "창의체험부", "2026-08-30", 0),
     ("2학기 방과후학교 강사 모집", "신규 강사 지원 서류를 제출해주세요.", None, "2026-09-05", 0),
     ("생활기록부 작성 연수 자료 공유", "첨부된 자료를 참고해 작성해주세요.", None, None, 0),
     ("교내 화재 대피 훈련 안내", "9월 셋째 주 중 실시 예정입니다.", None, "2026-09-15", 1),
