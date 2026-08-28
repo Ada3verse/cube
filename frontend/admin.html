@@ -19,6 +19,10 @@
     .admin-form input, .admin-form select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; }
     .admin-form label.checkbox { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--text-muted); }
     .admin-table { width: 100%; border-collapse: collapse; background: var(--white); }
+    #teacher-table { table-layout: fixed; }
+    #teacher-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+    .grade-class-cell { white-space: nowrap; }
     .admin-table th { background: var(--green-lighter); color: #1f4d33; padding: 10px; text-align: left; }
     .admin-table th.sortable { cursor: pointer; user-select: none; }
     .admin-table th.sortable:hover { background: var(--green-light); }
@@ -69,7 +73,17 @@
           <button id="add-teacher-btn" class="btn btn-primary" onclick="startAddTeacher()">등록</button>
         </div>
         <p id="users-msg" class="admin-msg"></p>
-        <table class="admin-table">
+        <table class="admin-table" id="teacher-table">
+          <colgroup>
+            <col style="width:110px" />
+            <col style="width:90px" />
+            <col />
+            <col style="width:90px" />
+            <col />
+            <col style="width:160px" />
+            <col style="width:70px" />
+            <col style="width:150px" />
+          </colgroup>
           <thead>
             <tr>
               <th class="sortable" data-sort="is_admin">권한 <span class="sort-arrow"></span></th>
@@ -217,14 +231,14 @@
           <td><input id="edit-department" value="${v.department ?? ""}" placeholder="부서" /></td>
           <td><input id="edit-subject" value="${v.subject ?? ""}" placeholder="과목" /></td>
           <td><input type="checkbox" id="edit-homeroom" ${v.is_homeroom ? "checked" : ""} /></td>
-          <td>
-            <input type="number" id="edit-grade" min="1" max="3" value="${v.grade ?? ""}" placeholder="학년" style="width:50px" />
-            <input type="number" id="edit-classno" min="1" value="${v.class_no ?? ""}" placeholder="반" style="width:50px" />
+          <td class="grade-class-cell">
+            <input type="number" id="edit-grade" min="1" max="3" value="${v.grade ?? ""}" style="width:40px" />학년
+            <input type="number" id="edit-classno" min="1" value="${v.class_no ?? ""}" style="width:40px" />반
           </td>
           <td><input id="edit-extension" value="${v.extension ?? ""}" placeholder="내선" /></td>
           <td>
-            <button class="btn btn-primary" onclick="event.stopPropagation(); ${isNew ? "saveNewTeacher()" : `saveEditTeacher(${v.id})`}">저장</button>
-            <button class="btn btn-ghost" onclick="event.stopPropagation(); cancelTeacherEdit()">취소</button>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); ${isNew ? "saveNewTeacher()" : `saveEditTeacher(${v.id})`}">저장</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); cancelTeacherEdit()">취소</button>
           </td>
         </tr>`;
     }
@@ -239,7 +253,7 @@
           <td>${t.is_homeroom ? "Y" : "-"}</td>
           <td>${t.is_homeroom ? `${t.grade}학년 ${t.class_no}반` : "-"}</td>
           <td>${t.extension}</td>
-          <td><button class="btn btn-ghost" onclick="event.stopPropagation(); deleteTeacher(${t.id})">삭제</button></td>
+          <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deleteTeacher(${t.id})">삭제</button></td>
         </tr>`;
     }
 
