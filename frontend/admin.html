@@ -65,6 +65,10 @@
     .pin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; background: var(--green-light); color: #1f4d33; }
     .server-status-widget { position: fixed; bottom: 12px; left: 12px; width: 176px; box-sizing: border-box; background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; box-shadow: 0 4px 12px rgba(0,0,0,0.06); z-index: 100; white-space: normal; word-break: break-word; }
     .server-status-widget b { color: var(--text); }
+    .status-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .status-icon { font-size: 16px; color: var(--mint-dark); flex-shrink: 0; }
+    .disk-bar-track { flex: 1; height: 10px; background: var(--bg-soft); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+    .disk-bar-fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
     .admin-msg { font-size: 0.85rem; color: var(--danger); min-height: 1.2em; }
   </style>
 </head>
@@ -200,7 +204,12 @@
   </div>
 
   <div class="server-status-widget" id="server-status-widget">
-    <div>디스크: <b id="status-disk">-</b></div>
+    <div class="status-row" id="status-disk-row" title="">
+      <span class="material-symbols-outlined status-icon">hard_drive</span>
+      <div class="disk-bar-track">
+        <div class="disk-bar-fill" id="disk-bar-fill" style="width:0%"></div>
+      </div>
+    </div>
     <div>RAM: <b id="status-ram">-</b></div>
     <div>서버 시각: <b id="status-time">-</b></div>
   </div>
@@ -830,12 +839,23 @@
     }
 
     // ── 서버 상태 ──
+    function diskBarColor(percent) {
+      if (percent >= 85) return "#e0555f"; // 위험
+      if (percent >= 60) return "#e0954f"; // 주의
+      return "#6fb3b8"; // 여유
+    }
+
     async function loadServerStatus() {
       try {
         const res = await fetch(`${API_BASE}/server-status`);
         const s = await res.json();
-        document.getElementById("status-disk").textContent =
-          `${s.disk_used_gb} / ${s.disk_total_gb} GB (${s.disk_percent}%)`;
+
+        const fill = document.getElementById("disk-bar-fill");
+        fill.style.width = `${s.disk_percent}%`;
+        fill.style.background = diskBarColor(s.disk_percent);
+        document.getElementById("status-disk-row").title =
+          `디스크: ${s.disk_used_gb} / ${s.disk_total_gb} GB (${s.disk_percent}%)`;
+
         document.getElementById("status-ram").textContent =
           `${s.ram_used_gb} / ${s.ram_total_gb} GB (${s.ram_percent}%)`;
         document.getElementById("status-time").textContent = s.server_time;
