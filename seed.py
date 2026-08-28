@@ -27,7 +27,7 @@ conn = sqlite3.connect("database.db")
 cur = conn.cursor()
 
 # 기존 데이터 초기화 (재실행 대비)
-for table in ["Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
+for table in ["Memo", "Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
     cur.execute(f"DELETE FROM {table}")
     cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
 
@@ -176,6 +176,22 @@ for name, description, created_by, is_official in groups:
             (group_id, uid),
         )
 
+# ── Memo: 개인 캘린더 메모 (일부 교사만 샘플로 작성) ─────────
+memo_samples = [
+    ("2026-08-18", "개학식 준비물 미리 챙기기"),
+    ("2026-08-25", "수행평가 계획서 제출 전 동학년과 검토"),
+    ("2026-09-04", "체육대회 반티 사이즈 확인"),
+    ("2026-09-08", "출제 문제 오탈자 재확인"),
+    ("2026-09-30", "성적 입력 전 엑셀 백업"),
+]
+
+memo_authors = random.sample(teacher_ids, k=len(memo_samples))
+for uid, (date, content) in zip(memo_authors, memo_samples):
+    cur.execute(
+        "INSERT INTO Memo (user_id, date, content) VALUES (?, ?, ?)",
+        (uid, date, content),
+    )
+
 conn.commit()
 
 cur.execute("SELECT COUNT(*) FROM User")
@@ -192,5 +208,7 @@ cur.execute("SELECT COUNT(*) FROM Groups")
 print("Groups:", cur.fetchone()[0])
 cur.execute("SELECT COUNT(*) FROM Group_Member")
 print("Group_Member:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Memo")
+print("Memo:", cur.fetchone()[0])
 
 conn.close()

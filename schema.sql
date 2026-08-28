@@ -86,9 +86,20 @@ CREATE TABLE Group_Member (
     UNIQUE (group_id, user_id)
 );
 
+-- Memo: 개인 캘린더 메모 (본인만 조회/작성, 공유되지 않음)
+CREATE TABLE Memo (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES User(id),
+    date       TEXT NOT NULL,                  -- 메모가 표시될 날짜 (YYYY-MM-DD)
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 자주 조회하는 컬럼 인덱스
 CREATE INDEX idx_event_start        ON Event(start_at);
 CREATE INDEX idx_notification_user  ON Notification(user_id);
 CREATE INDEX idx_completion_user    ON Completion(user_id);
 CREATE INDEX idx_announcement_date  ON Announcement(created_at);
 CREATE INDEX idx_group_member_user  ON Group_Member(user_id);
+CREATE INDEX idx_memo_user_date     ON Memo(user_id, date);
