@@ -61,8 +61,29 @@ CREATE TABLE Announcement (
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Groups: 자유 그룹 (개인 또는 관리자가 생성)
+CREATE TABLE Groups (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    description TEXT,
+    created_by  INTEGER NOT NULL REFERENCES User(id),
+    is_official INTEGER NOT NULL DEFAULT 0,      -- 0=개인 그룹, 1=관리자 공식 그룹
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Group_Member: 그룹 소속 (다대다)
+CREATE TABLE Group_Member (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id  INTEGER NOT NULL REFERENCES Groups(id),
+    user_id   INTEGER NOT NULL REFERENCES User(id),
+    role      TEXT NOT NULL CHECK (role IN ('owner', 'member')) DEFAULT 'member',
+    joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (group_id, user_id)
+);
+
 -- 자주 조회하는 컬럼 인덱스
 CREATE INDEX idx_event_start        ON Event(start_at);
 CREATE INDEX idx_notification_user  ON Notification(user_id);
 CREATE INDEX idx_completion_user    ON Completion(user_id);
 CREATE INDEX idx_announcement_date  ON Announcement(created_at);
+CREATE INDEX idx_group_member_user  ON Group_Member(user_id);

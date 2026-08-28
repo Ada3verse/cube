@@ -24,7 +24,7 @@ conn = sqlite3.connect("database.db")
 cur = conn.cursor()
 
 # 기존 데이터 초기화 (재실행 대비)
-for table in ["Completion", "Notification", "Announcement", "Event", "User"]:
+for table in ["Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
     cur.execute(f"DELETE FROM {table}")
     cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
 
@@ -125,6 +125,37 @@ for title, content, target_group, deadline, is_pinned in announcements:
         (title, content, author, target_group, deadline, is_pinned),
     )
 
+# ── Groups: 예시 그룹 5개 (공식 3 + 개인 2) ──────────────────
+groups = [
+    ("체육대회 준비 TF", "체육대회 기획 및 운영을 담당하는 임시 조직입니다.", admin_id, 1),
+    ("학교폭력대책위원회", "학교폭력 관련 사안을 심의합니다.", admin_id, 1),
+    ("방과후학교 운영진", "방과후학교 프로그램 운영 담당 교사 모임입니다.", admin_id, 1),
+    ("동아리 지도교사 모임", "동아리 담당 교사들끼리 정보를 공유하는 모임입니다.", random.choice(teacher_ids), 0),
+    ("등산 동호회", "주말마다 등산하는 친목 모임입니다.", random.choice(teacher_ids), 0),
+]
+
+for name, description, created_by, is_official in groups:
+    cur.execute(
+        "INSERT INTO Groups (name, description, created_by, is_official) VALUES (?, ?, ?, ?)",
+        (name, description, created_by, is_official),
+    )
+    group_id = cur.lastrowid
+
+    # 만든 사람은 owner로 자동 등록
+    cur.execute(
+        "INSERT INTO Group_Member (group_id, user_id, role) VALUES (?, ?, 'owner')",
+        (group_id, created_by),
+    )
+
+    # 나머지 멤버 랜덤 배정 (본인 제외)
+    candidates = [uid for uid in teacher_ids if uid != created_by]
+    members = random.sample(candidates, k=random.randint(4, 9))
+    for uid in members:
+        cur.execute(
+            "INSERT INTO Group_Member (group_id, user_id, role) VALUES (?, ?, 'member')",
+            (group_id, uid),
+        )
+
 conn.commit()
 
 cur.execute("SELECT COUNT(*) FROM User")
@@ -137,5 +168,9 @@ cur.execute("SELECT COUNT(*) FROM Completion")
 print("Completion:", cur.fetchone()[0])
 cur.execute("SELECT COUNT(*) FROM Announcement")
 print("Announcement:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Groups")
+print("Groups:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Group_Member")
+print("Group_Member:", cur.fetchone()[0])
 
 conn.close()
