@@ -1,7 +1,10 @@
 // 공지사항 등록 + 관리
 // 담당: hbn2814
 
-const notices = [];
+const API_BASE = "http://127.0.0.1:8000";
+const AUTH_STORAGE_KEY = "cube_user";
+
+let notices = [];
 
 function calcDday(deadline) {
   const today = new Date();
@@ -15,36 +18,57 @@ function calcDday(deadline) {
 }
 
 function extractMentions(text) {
-  const matches = text.match(/@[가-힣a-zA-Z0-9_]+/g) || [];
+  const matches = (text || "").match(/@[가-힣a-zA-Z0-9_]+/g) || [];
   return matches.map((m) => m.slice(1));
 }
 
-function createNotice({
-  title,
-  content,
-  deadline,
-  author_id = null,
-  target_group = null,
-  mentionedTeachers = [],
-}) {
-  const now = new Date().toISOString();
+function getCurrentUserId() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    return raw ? JSON.parse(raw).id : null;
+  } catch {
+    return null;
+  }
+}
+
+// 서버에서 공지 목록을 불러와 로컬 캐시(notices)를 채운다.
+// mentionedTeachers는 DB 컬럼이 아니라서 content에서 매번 다시 추출한다.
+async function fetchNotices() {
+  const res = await fetch(`${API_BASE}/notices`);
+  if (!res.ok) throw new Error("공지 목록을 불러오지 못했습니다.");
+  const rows = await res.json();
+  notices = rows.map((r) => ({
+    ...r,
+    mentionedTeachers: extractMentions(r.content),
+  }));
+  return notices;
+}
+
+async function createNotice({ title, content, deadline, mentionedTeachers = [] }) {
+  const res = await fetch(`${API_BASE}/notices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title,
+      content,
+      deadline,
+      author_id: getCurrentUserId(),
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "공지 등록에 실패했습니다.");
+  }
+
+  const created = await res.json();
   const notice = {
-    id: Date.now(),
-    title,
-    content,
-    author_id,
-    target_group,
-    deadline,
-    is_pinned: 0,
-    is_deleted: 0,
-    // Announcement 테이블에는 없는 클라이언트 전용 필드 (Notification 대상자 표시용)
+    ...created,
     mentionedTeachers: mentionedTeachers.length
       ? mentionedTeachers
       : extractMentions(content),
-    created_at: now,
-    updated_at: now,
   };
-  notices.push(notice);
+  notices.unshift(notice);
   return notice;
 }
 
@@ -52,23 +76,32 @@ function getNotices() {
   return [...notices].sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
 }
 
-function initNoticeForm() {
+async function initNoticeForm() {
   const form = document.getElementById("notice-form");
   if (!form) return;
 
-  form.addEventListener("submit", (e) => {
+  try {
+    await fetchNotices();
+  } catch (err) {
+    console.error(err);
+  }
+  renderNoticeList();
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const title = document.getElementById("notice-title").value.trim();
     const content = document.getElementById("notice-content").value.trim();
     const deadline = document.getElementById("notice-deadline").value;
     if (!title || !deadline) return;
 
-    createNotice({ title, content, deadline });
-    form.reset();
-    renderNoticeList();
+    try {
+      await createNotice({ title, content, deadline });
+      form.reset();
+      renderNoticeList();
+    } catch (err) {
+      alert(err.message);
+    }
   });
-
-  renderNoticeList();
 }
 
 function renderNoticeList() {
@@ -89,4 +122,4 @@ function renderNoticeList() {
 
 document.addEventListener("DOMContentLoaded", initNoticeForm);
 
-export { createNotice, getNotices, calcDday, extractMentions };
+export { createNotice, getNotices, fetchNotices, calcDday, extractMentions };
