@@ -305,6 +305,20 @@ def create_academic_schedule(payload: ScheduleCreate):
     return dict(row)
 
 
+@app.delete("/academic-schedule/{schedule_id}", status_code=204)
+def delete_academic_schedule(schedule_id: int):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM AcademicSchedule WHERE id = ?", (schedule_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="학사일정을 찾을 수 없습니다.")
+
+    conn.execute("DELETE FROM AcademicSchedule WHERE id = ?", (schedule_id,))
+    conn.commit()
+    conn.close()
+    return None
+
+
 # ---------- 공지 ----------
 @app.get("/notices")
 def get_notices():
