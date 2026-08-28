@@ -43,23 +43,25 @@
     </header>
 
     <main class="app-main">
-      <!-- 캘린더 섹션 -->
+      <!-- 캘린더 섹션 (4주 단위) -->
       <section id="calendar" class="tab-panel active">
         <div class="section-header">
-          <button id="prev-month">&lt;</button>
-          <h2 id="calendar-title"></h2>
-          <button id="next-month">&gt;</button>
+          <button id="prev-week">&lt;</button>
+          <h2 id="calendar-range"></h2>
+          <button id="next-week">&gt;</button>
         </div>
-        <table class="calendar-table">
-          <thead>
-            <tr>
-              <th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th>
-            </tr>
-          </thead>
-          <tbody id="calendar-body">
-            <!-- calendar.js 가 채웁니다 -->
-          </tbody>
-        </table>
+        <div id="calendar-scroll-area" class="calendar-scroll-area">
+          <table class="calendar-table">
+            <thead>
+              <tr>
+                <th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th>
+              </tr>
+            </thead>
+            <tbody id="calendar-body">
+              <!-- calendar.js 가 채웁니다 -->
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- 공지등록 섹션 -->
@@ -102,12 +104,35 @@
     </main>
 
     <div id="today-popup" class="today-popup hidden"></div>
+
+    <!-- 스마트 알람: 1주 전(소프트) / 3일 전(경고) 코너 팝업 -->
+    <div id="alarm-soft-popup" class="alarm-corner-popup hidden"></div>
+    <div id="alarm-warn-popup" class="alarm-corner-popup alarm-warn hidden"></div>
+
+    <!-- 스마트 알람: D-DAY 전면 강제 모달 (확인 버튼으로만 닫힘) -->
+    <div id="alarm-dday-modal" class="alarm-dday-overlay hidden">
+      <div class="alarm-dday-card">
+        <div id="alarm-dday-body"></div>
+      </div>
+    </div>
+
+    <!-- 날짜 상세 모달 -->
+    <div id="day-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="modal-date-title"></h3>
+          <button id="modal-close" class="modal-close">&times;</button>
+        </div>
+        <div id="modal-body" class="modal-body"></div>
+      </div>
+    </div>
   </div>
 
   <script src="js/calendar.js"></script>
   <script src="js/submission.js"></script>
   <script type="module" src="js/notice.js"></script>
   <script type="module" src="js/notification.js"></script>
+  <script src="js/alarm.js"></script>
   <script src="js/auth.js"></script>
   <script>
     const tabButtons = document.querySelectorAll(".tab-btn");

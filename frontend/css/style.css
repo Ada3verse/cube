@@ -10,6 +10,11 @@
   --border: #e3f1e6;
   --white: #ffffff;
   --danger: #e07a7a;
+  --danger-light: #fbe4e4;
+  --orange: #e8985e;
+  --orange-light: #fbe9d9;
+  --gray: #9aa79e;
+  --gray-light: #eef2ef;
 }
 
 * {
@@ -240,11 +245,16 @@ button {
 }
 
 /* ---------- Calendar ---------- */
+.calendar-scroll-area {
+  cursor: ns-resize;
+}
+
 .calendar-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 4px;
 }
+
 
 .calendar-table th {
   background: var(--green-lighter);
@@ -256,25 +266,59 @@ button {
 
 .calendar-table td {
   width: 14.28%;
-  height: 90px;
+  height: 76px;
   border: 1px solid var(--border);
   border-radius: 12px;
   vertical-align: top;
   padding: 8px;
   font-size: 0.85rem;
   color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  position: relative;
+}
+
+.calendar-table td:hover {
+  background: var(--bg-soft);
 }
 
 .calendar-table td.today {
   background: var(--green-light);
-  font-weight: 700;
   border-color: var(--mint);
 }
 
-.calendar-table td.empty {
-  background: var(--bg-soft);
-  color: var(--text-muted);
-  border-color: transparent;
+.calendar-table td.today .day-number {
+  font-weight: 800;
+  color: #1f4d33;
+}
+
+.day-number {
+  font-size: 0.85rem;
+}
+
+.day-dot {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.day-dot-today {
+  background: var(--danger);
+}
+
+.day-dot-soon {
+  background: var(--orange);
+}
+
+.day-dot-safe {
+  background: #52b788;
+}
+
+.day-dot-past {
+  background: var(--gray);
 }
 
 /* ---------- Notice form ---------- */
@@ -440,4 +484,267 @@ button {
 
 .today-popup button:hover {
   background: var(--green-lighter);
+}
+
+/* ---------- Day detail modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 40, 32, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-card {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--white);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 48px rgba(20, 40, 32, 0.28);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--mint-dark);
+  font-size: 1.05rem;
+}
+
+.modal-close {
+  border: none;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  background: var(--green-lighter);
+}
+
+.modal-empty {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.modal-item {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: var(--bg-soft);
+}
+
+.modal-item:last-child {
+  margin-bottom: 0;
+}
+
+.modal-item-top {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.modal-item-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+}
+
+.modal-item-content {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* 같은 날짜(=같은 남은 기한) 항목 그룹 표시: 뱃지/상태는 상단에 한 번만 */
+.modal-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.modal-group-count {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.modal-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-group-list .modal-item {
+  margin-bottom: 0;
+}
+
+/* D-day 뱃지: D-DAY 빨강 / 임박(D-3 이내) 주황 / 여유(D-7 이상 포함) 초록 / 지난 마감 회색 */
+.dday-badge {
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.dday-today {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.dday-soon {
+  background: var(--orange-light);
+  color: var(--orange);
+}
+
+.dday-safe {
+  background: var(--green-lighter);
+  color: #1f4d33;
+}
+
+.dday-past {
+  background: var(--gray-light);
+  color: var(--gray);
+}
+
+/* 업무 상태 태그: 예정 / 진행중 / 임박 / 완료 */
+.status-tag {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.status-tag-예정 {
+  background: var(--green-lighter);
+  color: #1f4d33;
+  border-color: transparent;
+}
+
+.status-tag-진행중 {
+  background: var(--mint);
+  color: #1a3d40;
+  border-color: transparent;
+}
+
+.status-tag-임박 {
+  background: var(--orange-light);
+  color: var(--orange);
+  border-color: transparent;
+}
+
+.status-tag-완료 {
+  background: var(--gray-light);
+  color: var(--gray);
+  border-color: transparent;
+}
+
+/* ---------- 스마트 알람: 코너 팝업 (1주 전 소프트 / 3일 전 경고) ---------- */
+.alarm-corner-popup {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  width: 300px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(111, 179, 184, 0.22);
+  z-index: 90;
+}
+
+.alarm-corner-popup.alarm-warn {
+  border: 2px solid var(--danger);
+  box-shadow: 0 12px 32px rgba(224, 122, 122, 0.28);
+}
+
+.popup-header-warn {
+  color: var(--danger);
+}
+
+.alarm-item-list {
+  list-style: none;
+  margin: 10px 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.alarm-item-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alarm-corner-popup button {
+  border: none;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.alarm-corner-popup button:hover {
+  background: var(--green-lighter);
+}
+
+/* ---------- 스마트 알람: D-DAY 전면 강제 모달 ---------- */
+.alarm-dday-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 40, 32, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.alarm-dday-card {
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  background: var(--white);
+  border-radius: 20px;
+  padding: 28px;
+  text-align: center;
+  border: 3px solid var(--danger);
+  box-shadow: 0 24px 56px rgba(224, 122, 122, 0.35);
+}
+
+.alarm-dday-message {
+  color: var(--danger);
+  font-weight: 800;
+  font-size: 1.05rem;
+  margin: 0 0 14px;
+}
+
+.alarm-dday-card .alarm-item-list {
+  text-align: left;
+}
+
+.alarm-dday-card .btn {
+  margin-top: 6px;
+  width: 100%;
 }
