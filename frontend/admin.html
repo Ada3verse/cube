@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUBE - 관리자 페이지</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .admin-layout { display: flex; min-height: calc(100vh - 61px); }
+    .admin-sidebar { width: 200px; flex-shrink: 0; background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; }
+    .admin-nav-btn { display: block; width: 100%; text-align: left; padding: 12px 20px; border: none; background: none; cursor: pointer; font-size: 0.9rem; color: var(--text); border-left: 3px solid transparent; }
+    .admin-nav-btn:hover { background: var(--bg-soft); }
+    .admin-nav-btn.active { background: var(--green-lighter); border-left-color: var(--mint-dark); color: #1f4d33; font-weight: 700; }
+    .admin-content { flex: 1; padding: 24px 32px; }
+    .admin-view { display: none; }
+    .admin-view.active { display: block; }
+    .admin-form { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; }
+    .admin-form input, .admin-form select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; }
+    .admin-form label.checkbox { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--text-muted); }
+    .admin-table { width: 100%; border-collapse: collapse; background: var(--white); }
+    .admin-table th { background: var(--green-lighter); color: #1f4d33; padding: 10px; text-align: left; }
+    .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .role-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+    .role-badge.admin { background: var(--danger); color: #fff; }
+    .role-badge.teacher { background: var(--mint); color: #1a3d40; }
+    .pin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; background: var(--green-light); color: #1f4d33; }
+    .admin-msg { font-size: 0.85rem; color: var(--danger); min-height: 1.2em; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="logo">CUBE</div>
+    <nav class="tab-nav">
+      <span style="font-weight:700;">관리자 페이지</span>
+    </nav>
+    <div class="user-box">
+      <a href="index.html" class="btn btn-ghost">메인으로</a>
+    </div>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <button class="admin-nav-btn active" data-view="users">사용자 등록</button>
+      <button class="admin-nav-btn" data-view="schedule">학사일정</button>
+      <button class="admin-nav-btn" data-view="notices">공지사항 관리</button>
+    </aside>
+
+    <div class="admin-content">
+
+      <!-- ── 사용자 등록 ── -->
+      <section id="view-users" class="admin-view active">
+        <div class="section-header"><h2>교사 등록</h2></div>
+        <form id="create-form" class="admin-form">
+          <input name="name" placeholder="이름" required />
+          <select name="role">
+            <option value="teacher">teacher</option>
+            <option value="admin">admin</option>
+          </select>
+          <select name="department" required>
+            <option value="교무부">교무부</option>
+            <option value="연구부">연구부</option>
+            <option value="과학정보부">과학정보부</option>
+            <option value="창의체험부">창의체험부</option>
+            <option value="생활안전부">생활안전부</option>
+          </select>
+          <input name="subject" placeholder="과목 (선택)" />
+          <label class="checkbox"><input type="checkbox" name="is_homeroom" /> 담임</label>
+          <input name="grade" type="number" min="1" max="3" placeholder="학년" style="width:70px" />
+          <input name="class_no" type="number" min="1" placeholder="반" style="width:70px" />
+          <input name="extension" placeholder="내선번호" required style="width:100px" />
+          <button type="submit" class="btn btn-primary">등록</button>
+        </form>
+        <p id="users-msg" class="admin-msg"></p>
+
+        <div class="section-header"><h2>교사 목록</h2></div>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>이름</th><th>권한</th><th>부서</th><th>과목</th>
+              <th>담임</th><th>학년/반</th><th>내선</th><th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="teacher-table-body"></tbody>
+        </table>
+      </section>
+
+      <!-- ── 학사일정 ── -->
+      <section id="view-schedule" class="admin-view">
+        <div class="section-header"><h2>학사일정 등록</h2></div>
+        <form id="schedule-form" class="admin-form">
+          <input name="title" placeholder="제목 (예: 여름방학)" required />
+          <select name="category" required>
+            <option value="학기">학기</option>
+            <option value="방학">방학</option>
+            <option value="시험기간">시험기간</option>
+            <option value="공휴일">공휴일</option>
+            <option value="재량휴업일">재량휴업일</option>
+            <option value="기타">기타</option>
+          </select>
+          <input name="start_date" type="date" required />
+          <input name="end_date" type="date" placeholder="종료일 (선택)" />
+          <button type="submit" class="btn btn-primary">등록</button>
+        </form>
+        <p id="schedule-msg" class="admin-msg"></p>
+
+        <div class="section-header"><h2>학사일정 목록</h2></div>
+        <table class="admin-table">
+          <thead>
+            <tr><th>제목</th><th>구분</th><th>시작일</th><th>종료일</th></tr>
+          </thead>
+          <tbody id="schedule-table-body"></tbody>
+        </table>
+      </section>
+
+      <!-- ── 공지사항 관리 ── -->
+      <section id="view-notices" class="admin-view">
+        <div class="section-header"><h2>공지사항 관리</h2></div>
+        <p id="notices-msg" class="admin-msg"></p>
+        <table class="admin-table">
+          <thead>
+            <tr><th>제목</th><th>마감일</th><th>고정</th><th>등록일</th><th>관리</th></tr>
+          </thead>
+          <tbody id="notices-table-body"></tbody>
+        </table>
+      </section>
+
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+    const CURRENT_ADMIN_ID = JSON.parse(localStorage.getItem("cube_user") || "null")?.id ?? 1;
+
+    // ── 네비게이션 전환 ──
+    document.querySelectorAll(".admin-nav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".admin-nav-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".admin-view").forEach((v) => v.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(`view-${btn.dataset.view}`).classList.add("active");
+      });
+    });
+
+    function flashMsg(elId, text) {
+      const el = document.getElementById(elId);
+      el.textContent = text;
+      setTimeout(() => (el.textContent = ""), 3000);
+    }
+
+    // ── 사용자 등록/목록 ──
+    async function loadTeachers() {
+      const res = await fetch(`${API_BASE}/teachers`);
+      const teachers = await res.json();
+      document.getElementById("teacher-table-body").innerHTML = teachers
+        .map(
+          (t) => `
+        <tr>
+          <td>${t.id}</td>
+          <td>${t.name}</td>
+          <td><span class="role-badge ${t.role}">${t.role}</span></td>
+          <td>${t.department}</td>
+          <td>${t.subject ?? "-"}</td>
+          <td>${t.is_homeroom ? "Y" : "-"}</td>
+          <td>${t.is_homeroom ? `${t.grade}학년 ${t.class_no}반` : "-"}</td>
+          <td>${t.extension}</td>
+          <td><button class="btn btn-ghost" onclick="toggleRole(${t.id}, '${t.role}')">권한 전환</button></td>
+        </tr>`
+        )
+        .join("");
+    }
+
+    async function toggleRole(id, currentRole) {
+      const newRole = currentRole === "admin" ? "teacher" : "admin";
+      const res = await fetch(`${API_BASE}/teachers/${id}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) return flashMsg("users-msg", "권한 변경 실패");
+      loadTeachers();
+    }
+
+    document.getElementById("create-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+      const payload = {
+        name: data.get("name"),
+        role: data.get("role"),
+        department: data.get("department"),
+        subject: data.get("subject") || null,
+        is_homeroom: form.querySelector("[name=is_homeroom]").checked,
+        grade: data.get("grade") ? Number(data.get("grade")) : null,
+        class_no: data.get("class_no") ? Number(data.get("class_no")) : null,
+        extension: data.get("extension"),
+      };
+
+      const res = await fetch(`${API_BASE}/teachers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("users-msg", "등록 실패: " + (err.detail || res.status));
+      }
+
+      form.reset();
+      loadTeachers();
+    });
+
+    // ── 학사일정 ──
+    async function loadSchedule() {
+      const res = await fetch(`${API_BASE}/academic-schedule`);
+      const rows = await res.json();
+      document.getElementById("schedule-table-body").innerHTML = rows
+        .map(
+          (s) => `
+        <tr>
+          <td>${s.title}</td>
+          <td>${s.category}</td>
+          <td>${s.start_date}</td>
+          <td>${s.end_date ?? "-"}</td>
+        </tr>`
+        )
+        .join("");
+    }
+
+    document.getElementById("schedule-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+      const payload = {
+        title: data.get("title"),
+        category: data.get("category"),
+        start_date: data.get("start_date"),
+        end_date: data.get("end_date") || null,
+        created_by: CURRENT_ADMIN_ID,
+      };
+
+      const res = await fetch(`${API_BASE}/academic-schedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("schedule-msg", "등록 실패: " + (err.detail || res.status));
+      }
+
+      form.reset();
+      loadSchedule();
+    });
+
+    // ── 공지사항 관리 ──
+    async function loadNotices() {
+      const res = await fetch(`${API_BASE}/notices`);
+      const notices = await res.json();
+      document.getElementById("notices-table-body").innerHTML = notices
+        .map(
+          (n) => `
+        <tr>
+          <td>${n.title}</td>
+          <td>${n.deadline ?? "-"}</td>
+          <td>${n.is_pinned ? `<span class="pin-badge">고정됨</span>` : "-"}</td>
+          <td>${n.created_at}</td>
+          <td>
+            <button class="btn btn-ghost" onclick="toggleNoticePin(${n.id}, ${n.is_pinned})">${n.is_pinned ? "고정 해제" : "상단 고정"}</button>
+            <button class="btn btn-ghost" onclick="deleteNotice(${n.id})">삭제</button>
+          </td>
+        </tr>`
+        )
+        .join("");
+    }
+
+    async function toggleNoticePin(id, currentPinned) {
+      const res = await fetch(`${API_BASE}/notices/${id}/pin`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_pinned: !currentPinned }),
+      });
+      if (!res.ok) return flashMsg("notices-msg", "고정 상태 변경 실패");
+      loadNotices();
+    }
+
+    async function deleteNotice(id) {
+      const res = await fetch(`${API_BASE}/notices/${id}`, { method: "DELETE" });
+      if (!res.ok) return flashMsg("notices-msg", "삭제 실패");
+      loadNotices();
+    }
+
+    loadTeachers();
+    loadSchedule();
+    loadNotices();
+  </script>
+
+</body>
+</html>
