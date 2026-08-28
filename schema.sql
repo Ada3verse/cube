@@ -10,6 +10,7 @@ CREATE TABLE User (
     is_homeroom   INTEGER NOT NULL DEFAULT 0,     -- 담임 여부
     grade         INTEGER CHECK (grade IS NULL OR grade BETWEEN 1 AND 3),  -- 담임 학년, 담임 아니면 NULL
     class_no      INTEGER,                        -- 담임 반, 담임 아니면 NULL
+    extension     TEXT NOT NULL UNIQUE,            -- 내선번호
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (grade, class_no)                       -- 한 반에 담임은 한 명 (NULL끼리는 중복 허용됨)
 );

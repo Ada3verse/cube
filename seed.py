@@ -36,13 +36,15 @@ for i in range(30):
     email = f"teacher{i+1:02d}@school.kr"
     users.append((name, email, "teacher"))
 
+extensions = random.sample(range(1001, 1100), k=len(users))
+
 user_ids = {}
-for name, email, role in users:
+for (name, email, role), ext in zip(users, extensions):
     dept = random.choice(DEPARTMENTS)
     subject = None if role == "admin" else random.choice(SUBJECTS)
     cur.execute(
-        "INSERT INTO User (name, email, password_hash, role, department, subject) VALUES (?, ?, ?, ?, ?, ?)",
-        (name, email, "dummy_hash_for_prototype", role, dept, subject),
+        "INSERT INTO User (name, email, password_hash, role, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (name, email, "dummy_hash_for_prototype", role, dept, subject, str(ext)),
     )
     user_ids[email] = cur.lastrowid
 
