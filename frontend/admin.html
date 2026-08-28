@@ -35,6 +35,8 @@
     .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; text-align: center; }
     #teacher-table-body tr:not(.edit-row) { cursor: pointer; }
     #teacher-table-body tr:not(.edit-row):hover { background: var(--bg-soft); }
+    #groups-table-body tr:not(.edit-row):not(.group-members-row) { cursor: pointer; }
+    #groups-table-body tr:not(.edit-row):not(.group-members-row):hover { background: var(--bg-soft); }
     .schedule-layout { display: flex; gap: 16px; align-items: flex-start; }
     .schedule-category-panel { display: flex; flex-direction: column; gap: 6px; width: 100px; flex-shrink: 0; }
     .schedule-category-label { height: 42px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 1.05rem; font-weight: 700; color: #1f4d33; background: var(--green-lighter); border-radius: 10px; box-sizing: border-box; }
@@ -442,7 +444,7 @@
 
     // ── 그룹 관리 ──
     let currentGroups = [];
-    let editingGroupId = null; // null | "new"
+    let editingGroupId = null; // null | "new" | <group id>
     let expandedGroupId = null;
     let expandedGroupMembers = [];
 
@@ -455,6 +457,12 @@
     function startAddGroup() {
       if (editingGroupId !== null) return;
       editingGroupId = "new";
+      renderGroups();
+    }
+
+    function startEditGroup(id) {
+      if (editingGroupId !== null) return;
+      editingGroupId = id;
       renderGroups();
     }
 
@@ -475,6 +483,23 @@
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         return flashMsg("groups-msg", "등록 실패: " + (err.detail || res.status));
+      }
+      editingGroupId = null;
+      loadGroups();
+    }
+
+    async function saveEditGroup(id) {
+      const name = document.getElementById("group-edit-name").value.trim();
+      if (!name) return flashMsg("groups-msg", "그룹명을 입력하세요.");
+
+      const res = await fetch(`${API_BASE}/groups/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("groups-msg", "수정 실패: " + (err.detail || res.status));
       }
       editingGroupId = null;
       loadGroups();
@@ -529,15 +554,16 @@
       loadGroups();
     }
 
-    function renderGroupEditRow() {
+    function renderGroupEditRow(group) {
+      const isNew = group === null;
       return `
         <tr class="edit-row">
-          <td><input id="group-edit-name" placeholder="그룹명" /></td>
-          <td>-</td>
-          <td>-</td>
+          <td><input id="group-edit-name" value="${isNew ? "" : group.name}" placeholder="그룹명" /></td>
+          <td style="text-align:left;">${isNew ? "-" : (group.members ?? "-")}</td>
+          <td>${isNew ? "-" : group.member_count}</td>
           <td>
-            <button class="btn btn-primary btn-sm" onclick="saveNewGroup()">저장</button>
-            <button class="btn btn-ghost btn-sm" onclick="cancelGroupEdit()">취소</button>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); ${isNew ? "saveNewGroup()" : `saveEditGroup(${group.id})`}">저장</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); cancelGroupEdit()">취소</button>
           </td>
         </tr>`;
     }
@@ -575,19 +601,24 @@
     }
 
     function renderGroups() {
-      let html = editingGroupId === "new" ? renderGroupEditRow() : "";
+      let html = editingGroupId === "new" ? renderGroupEditRow(null) : "";
       html += currentGroups
         .map((g) => {
-          let row = `
-        <tr>
+          let row;
+          if (g.id === editingGroupId) {
+            row = renderGroupEditRow(g);
+          } else {
+            row = `
+        <tr onclick="startEditGroup(${g.id})">
           <td>${g.name}</td>
-          <td>${g.members ?? "-"}</td>
+          <td style="text-align:left;">${g.members ?? "-"}</td>
           <td>${g.member_count}</td>
           <td>
-            <button class="btn btn-ghost btn-sm" onclick="toggleGroupMembers(${g.id})">멤버 관리</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteGroup(${g.id}, '${g.name.replace(/'/g, "\\'")}')">삭제</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); toggleGroupMembers(${g.id})">멤버 관리</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deleteGroup(${g.id}, '${g.name.replace(/'/g, "\\'")}')">삭제</button>
           </td>
         </tr>`;
+          }
           if (expandedGroupId === g.id) {
             row += renderGroupMembersRow(g);
           }

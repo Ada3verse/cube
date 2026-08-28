@@ -97,6 +97,10 @@ class GroupMemberAdd(BaseModel):
     user_id: int
 
 
+class GroupUpdate(BaseModel):
+    name: str
+
+
 @app.get("/")
 def read_root():
     return {"message": "CUBE API 서버가 실행 중입니다."}
@@ -336,8 +340,10 @@ def get_groups(official: Optional[bool] = None):
     query = (
         "SELECT g.id, g.name, g.description, g.created_by, g.is_official, g.created_at, "
         "(SELECT COUNT(*) FROM Group_Member gm WHERE gm.group_id = g.id) AS member_count, "
-        "(SELECT GROUP_CONCAT(u.name, ', ') FROM Group_Member gm2 "
-        " JOIN User u ON u.id = gm2.user_id WHERE gm2.group_id = g.id) AS members "
+        "(SELECT GROUP_CONCAT(name, ', ') FROM ("
+        "   SELECT u.name FROM Group_Member gm2 JOIN User u ON u.id = gm2.user_id "
+        "   WHERE gm2.group_id = g.id ORDER BY u.name"
+        " )) AS members "
         "FROM Groups g"
     )
     params: list = []
@@ -371,6 +377,24 @@ def create_group(payload: GroupCreate):
     result = dict(row)
     result["member_count"] = 1
     return result
+
+
+@app.put("/groups/{group_id}")
+def update_group(group_id: int, payload: GroupUpdate):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Groups WHERE id = ?", (group_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    conn.execute("UPDATE Groups SET name = ? WHERE id = ?", (payload.name, group_id))
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, name, description, created_by, is_official, created_at FROM Groups WHERE id = ?",
+        (group_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row)
 
 
 @app.delete("/groups/{group_id}", status_code=204)
