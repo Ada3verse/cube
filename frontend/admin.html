@@ -24,7 +24,8 @@
     .admin-table th.sortable .sort-arrow { display: inline-block; width: 1em; opacity: 0.5; }
     .admin-table th.sortable.sort-active .sort-arrow { opacity: 1; }
     .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
-    .admin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--danger); color: #fff; }
+    .admin-toggle-btn { padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--bg-soft); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; }
+    .admin-toggle-btn.active { background: var(--danger); color: #fff; border-color: var(--danger); }
     .pin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; background: var(--green-light); color: #1f4d33; }
     .admin-msg { font-size: 0.85rem; color: var(--danger); min-height: 1.2em; }
   </style>
@@ -83,7 +84,7 @@
               <th class="sortable" data-sort="is_homeroom">담임 <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="grade">학년/반 <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="extension">내선 <span class="sort-arrow"></span></th>
-              <th>관리</th>
+              <th>삭제</th>
             </tr>
           </thead>
           <tbody id="teacher-table-body"></tbody>
@@ -199,13 +200,13 @@
         <tr>
           <td>${t.id}</td>
           <td>${t.name}</td>
-          <td>${t.is_admin ? `<span class="admin-badge">관리자</span>` : "-"}</td>
+          <td><button class="admin-toggle-btn ${t.is_admin ? "active" : ""}" onclick="toggleAdmin(${t.id}, ${t.is_admin})">관리자</button></td>
           <td>${t.department}</td>
           <td>${t.subject ?? "-"}</td>
           <td>${t.is_homeroom ? "Y" : "-"}</td>
           <td>${t.is_homeroom ? `${t.grade}학년 ${t.class_no}반` : "-"}</td>
           <td>${t.extension}</td>
-          <td><button class="btn btn-ghost" onclick="toggleAdmin(${t.id}, ${t.is_admin})">${t.is_admin ? "관리자 해제" : "관리자 지정"}</button></td>
+          <td><button class="btn btn-ghost" onclick="deleteTeacher(${t.id})">삭제</button></td>
         </tr>`
         )
         .join("");
@@ -230,6 +231,13 @@
         body: JSON.stringify({ is_admin: !currentIsAdmin }),
       });
       if (!res.ok) return flashMsg("users-msg", "권한 변경 실패");
+      loadTeachers();
+    }
+
+    async function deleteTeacher(id) {
+      const res = await fetch(`${API_BASE}/teachers/${id}`, { method: "DELETE" });
+      if (!res.ok) return flashMsg("users-msg", "삭제 실패");
+      flashMsg("users-msg", "휴지통으로 이동했습니다.");
       loadTeachers();
     }
 

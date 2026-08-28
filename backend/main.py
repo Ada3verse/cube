@@ -92,7 +92,7 @@ def login(payload: LoginRequest):
     conn = get_connection()
     row = conn.execute(
         "SELECT id, name, is_admin, department, subject, password_hash "
-        "FROM User WHERE name = ?",
+        "FROM User WHERE name = ? AND is_deleted = 0",
         (payload.name,),
     ).fetchone()
     conn.close()
@@ -115,7 +115,7 @@ def get_teachers():
     conn = get_connection()
     rows = conn.execute(
         "SELECT id, name, is_admin, department, subject, is_homeroom, grade, class_no, extension "
-        "FROM User ORDER BY name"
+        "FROM User WHERE is_deleted = 0 ORDER BY name"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -204,6 +204,22 @@ def update_teacher_admin_status(teacher_id: int, payload: AdminStatusUpdate):
     row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
     conn.close()
     return dict(row)
+
+
+@app.delete("/teachers/{teacher_id}", status_code=204)
+def delete_teacher(teacher_id: int):
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM User WHERE id = ? AND is_deleted = 0", (teacher_id,)
+    ).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
+
+    conn.execute("UPDATE User SET is_deleted = 1 WHERE id = ?", (teacher_id,))
+    conn.commit()
+    conn.close()
+    return None
 
 
 # ---------- 관리자: 학사일정 (담당: yamako8119-ai) ----------
