@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CUBE - 관리자 페이지</title>
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" />
   <style>
     .admin-layout { display: flex; min-height: calc(100vh - 61px); }
     .section-header .btn { width: auto; height: auto; border-radius: 999px; white-space: nowrap; }
+    .header-btn-group { display: flex; align-items: center; gap: 8px; }
+    .icon-btn { display: inline-flex !important; align-items: center; justify-content: center; padding: 0 !important; width: 38px !important; height: 38px !important; }
+    .icon-btn .material-symbols-outlined { font-size: 20px; }
     .admin-sidebar { width: 200px; flex-shrink: 0; background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; }
     .admin-nav-btn { display: block; width: 100%; text-align: left; padding: 12px 20px; border: none; background: none; cursor: pointer; font-size: 0.9rem; color: var(--text); border-left: 3px solid transparent; }
     .admin-nav-btn:hover { background: var(--bg-soft); }
@@ -64,7 +68,6 @@
       <button class="admin-nav-btn active" data-view="users">사용자 등록</button>
       <button class="admin-nav-btn" data-view="schedule">학사일정</button>
       <button class="admin-nav-btn" data-view="notices">공지사항 관리</button>
-      <button class="admin-nav-btn" data-view="trash">휴지통</button>
     </aside>
 
     <div class="admin-content">
@@ -73,7 +76,12 @@
       <section id="view-users" class="admin-view active">
         <div class="section-header">
           <h2>교사 목록</h2>
-          <button id="add-teacher-btn" class="btn btn-primary" onclick="startAddTeacher()">등록</button>
+          <div class="header-btn-group">
+            <button id="add-teacher-btn" class="btn btn-primary" onclick="startAddTeacher()">등록</button>
+            <button id="trash-btn" class="btn btn-ghost icon-btn" onclick="showTrashView()" title="휴지통">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
         </div>
         <p id="users-msg" class="admin-msg"></p>
         <table class="admin-table" id="teacher-table">
@@ -177,6 +185,12 @@
         document.getElementById(`view-${btn.dataset.view}`).classList.add("active");
       });
     });
+
+    function showTrashView() {
+      document.querySelectorAll(".admin-nav-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".admin-view").forEach((v) => v.classList.remove("active"));
+      document.getElementById("view-trash").classList.add("active");
+    }
 
     function flashMsg(elId, text) {
       const el = document.getElementById(elId);
