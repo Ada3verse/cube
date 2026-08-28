@@ -114,7 +114,7 @@ def get_server_status():
         "ram_used_gb": round(mem.used / (1024**3), 1),
         "ram_total_gb": round(mem.total / (1024**3), 1),
         "ram_percent": mem.percent,
-        "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "server_time": datetime.now().strftime("%Y-%m-%d %H:%M"),
     }
 
 
