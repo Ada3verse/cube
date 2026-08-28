@@ -3,13 +3,14 @@ CREATE TABLE User (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL UNIQUE,          -- 로그인 아이디로 사용
     password_hash TEXT NOT NULL,                  -- 초기 비밀번호: 123456 (해시 저장)
-    role          TEXT NOT NULL CHECK (role IN ('teacher', 'admin')) DEFAULT 'teacher',
-    department    TEXT NOT NULL CHECK (department IN ('교무부', '연구부', '과학정보부', '창의체험부', '생활안전부')),
+    is_admin      INTEGER NOT NULL DEFAULT 0,    -- 관리자 여부 (0=일반 교사, 1=관리자)
+    department    TEXT NOT NULL,                  -- 부서명 (학교마다 다르므로 자유 입력)
     subject       TEXT,                          -- 담당 과목 (국어/영어/수학/과학/정보/사회 등), 없으면 NULL
     is_homeroom   INTEGER NOT NULL DEFAULT 0,     -- 담임 여부
     grade         INTEGER CHECK (grade IS NULL OR grade BETWEEN 1 AND 3),  -- 담임 학년, 담임 아니면 NULL
     class_no      INTEGER,                        -- 담임 반, 담임 아니면 NULL
     extension     TEXT NOT NULL UNIQUE,            -- 내선번호
+    is_deleted    INTEGER NOT NULL DEFAULT 0,      -- 삭제(휴지통) 여부, soft delete
     metadata      TEXT,                            -- 여분 확장 필드 (JSON 문자열), 필요할 때만 사용
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (grade, class_no)                       -- 한 반에 담임은 한 명 (NULL끼리는 중복 허용됨)

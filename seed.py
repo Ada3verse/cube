@@ -39,19 +39,19 @@ random.shuffle(all_name_combos)
 teacher_names = FIXED_TEACHER_NAMES + all_name_combos[: 30 - len(FIXED_TEACHER_NAMES)]
 
 users = []
-users.append(("정교장", "admin"))  # id 1
+users.append(("정교장", True))  # id 1
 for name in teacher_names:
-    users.append((name, "teacher"))
+    users.append((name, False))
 
 extensions = random.sample(range(1001, 1100), k=len(users))
 
 user_ids = {}
-for (name, role), ext in zip(users, extensions):
+for (name, is_admin), ext in zip(users, extensions):
     dept = random.choice(DEPARTMENTS)
-    subject = None if role == "admin" else random.choice(SUBJECTS)
+    subject = None if is_admin else random.choice(SUBJECTS)
     cur.execute(
-        "INSERT INTO User (name, password_hash, role, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?)",
-        (name, DEFAULT_PASSWORD_HASH, role, dept, subject, str(ext)),
+        "INSERT INTO User (name, password_hash, is_admin, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, DEFAULT_PASSWORD_HASH, int(is_admin), dept, subject, str(ext)),
     )
     user_ids[name] = cur.lastrowid
 

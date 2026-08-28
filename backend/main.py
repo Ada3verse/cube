@@ -1,13 +1,17 @@
 import hashlib
+import shutil
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
 
+import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-DB_PATH = Path(__file__).resolve().parent.parent / "database.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "database.db"
 
 app = FastAPI(title="CUBE API")
 
@@ -36,13 +40,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
-DEPARTMENTS = ["교무부", "연구부", "과학정보부", "창의체험부", "생활안전부"]
 DEFAULT_PASSWORD = "123456"
 
 
 class TeacherCreate(BaseModel):
     name: str
-    role: Literal["teacher", "admin"] = "teacher"
+    is_admin: bool = False
     department: str
     subject: Optional[str] = None
     is_homeroom: bool = False
@@ -61,8 +64,8 @@ class TeacherUpdate(BaseModel):
     extension: Optional[str] = None
 
 
-class RoleUpdate(BaseModel):
-    role: Literal["teacher", "admin"]
+class AdminStatusUpdate(BaseModel):
+    is_admin: bool
 
 
 SCHEDULE_CATEGORIES = ["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
@@ -93,14 +96,30 @@ def read_root():
     return {"message": "CUBE API 서버가 실행 중입니다."}
 
 
+# ---------- 서버 상태 (담당: yamako8119-ai) ----------
+@app.get("/server-status")
+def get_server_status():
+    disk = shutil.disk_usage(BASE_DIR)
+    mem = psutil.virtual_memory()
+    return {
+        "disk_used_gb": round(disk.used / (1024**3), 1),
+        "disk_total_gb": round(disk.total / (1024**3), 1),
+        "disk_percent": round(disk.used / disk.total * 100, 1),
+        "ram_used_gb": round(mem.used / (1024**3), 1),
+        "ram_total_gb": round(mem.total / (1024**3), 1),
+        "ram_percent": mem.percent,
+        "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
 # ---------- 로그인 ----------
 # 아이디: 교사 이름(User.name, UNIQUE). 초기 비밀번호: 123456 (seed.py와 동일한 해시 방식)
 @app.post("/login")
 def login(payload: LoginRequest):
     conn = get_connection()
     row = conn.execute(
-        "SELECT id, name, role, department, subject, password_hash "
-        "FROM User WHERE name = ?",
+        "SELECT id, name, is_admin, department, subject, password_hash "
+        "FROM User WHERE name = ? AND is_deleted = 0",
         (payload.name,),
     ).fetchone()
     conn.close()
@@ -111,7 +130,7 @@ def login(payload: LoginRequest):
     return {
         "id": row["id"],
         "name": row["name"],
-        "role": row["role"],
+        "is_admin": bool(row["is_admin"]),
         "department": row["department"],
         "subject": row["subject"],
     }
@@ -122,15 +141,15 @@ def login(payload: LoginRequest):
 def get_teachers():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, name, role, department, subject, is_homeroom, grade, class_no, extension "
-        "FROM User ORDER BY name"
+        "SELECT id, name, is_admin, department, subject, is_homeroom, grade, class_no, extension "
+        "FROM User WHERE is_deleted = 0 ORDER BY name"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 TEACHER_SELECT = (
-    "SELECT id, name, role, department, subject, is_homeroom, grade, class_no, extension "
+    "SELECT id, name, is_admin, department, subject, is_homeroom, grade, class_no, extension "
     "FROM User WHERE id = ?"
 )
 
@@ -138,18 +157,15 @@ TEACHER_SELECT = (
 # ---------- 관리자: 교사 등록/수정/권한관리 (담당: yamako8119-ai) ----------
 @app.post("/teachers", status_code=201)
 def create_teacher(payload: TeacherCreate):
-    if payload.department not in DEPARTMENTS:
-        raise HTTPException(status_code=400, detail=f"department는 {DEPARTMENTS} 중 하나여야 합니다.")
-
     conn = get_connection()
     try:
         cur = conn.execute(
-            """INSERT INTO User (name, password_hash, role, department, subject, is_homeroom, grade, class_no, extension)
+            """INSERT INTO User (name, password_hash, is_admin, department, subject, is_homeroom, grade, class_no, extension)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 payload.name,
                 hash_password(DEFAULT_PASSWORD),
-                payload.role,
+                int(payload.is_admin),
                 payload.department,
                 payload.subject,
                 int(payload.is_homeroom),
@@ -171,9 +187,6 @@ def create_teacher(payload: TeacherCreate):
 
 @app.put("/teachers/{teacher_id}")
 def update_teacher(teacher_id: int, payload: TeacherUpdate):
-    if payload.department is not None and payload.department not in DEPARTMENTS:
-        raise HTTPException(status_code=400, detail=f"department는 {DEPARTMENTS} 중 하나여야 합니다.")
-
     fields = payload.model_dump(exclude_unset=True)
     if not fields:
         raise HTTPException(status_code=400, detail="수정할 내용이 없습니다.")
@@ -199,15 +212,59 @@ def update_teacher(teacher_id: int, payload: TeacherUpdate):
     return dict(row)
 
 
-@app.patch("/teachers/{teacher_id}/role")
-def update_teacher_role(teacher_id: int, payload: RoleUpdate):
+@app.patch("/teachers/{teacher_id}/admin")
+def update_teacher_admin_status(teacher_id: int, payload: AdminStatusUpdate):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM User WHERE id = ?", (teacher_id,)).fetchone()
     if existing is None:
         conn.close()
         raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
 
-    conn.execute("UPDATE User SET role = ? WHERE id = ?", (payload.role, teacher_id))
+    conn.execute("UPDATE User SET is_admin = ? WHERE id = ?", (int(payload.is_admin), teacher_id))
+    conn.commit()
+    row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.delete("/teachers/{teacher_id}", status_code=204)
+def delete_teacher(teacher_id: int):
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM User WHERE id = ? AND is_deleted = 0", (teacher_id,)
+    ).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
+
+    conn.execute("UPDATE User SET is_deleted = 1 WHERE id = ?", (teacher_id,))
+    conn.commit()
+    conn.close()
+    return None
+
+
+@app.get("/teachers/trash")
+def get_deleted_teachers():
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, name, department, subject, extension "
+        "FROM User WHERE is_deleted = 1 ORDER BY name"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/teachers/{teacher_id}/restore")
+def restore_teacher(teacher_id: int):
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM User WHERE id = ? AND is_deleted = 1", (teacher_id,)
+    ).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="휴지통에서 해당 교사를 찾을 수 없습니다.")
+
+    conn.execute("UPDATE User SET is_deleted = 0 WHERE id = ?", (teacher_id,))
     conn.commit()
     row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
     conn.close()
