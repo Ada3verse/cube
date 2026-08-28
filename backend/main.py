@@ -40,7 +40,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-DEPARTMENTS = ["교무부", "연구부", "과학정보부", "창의체험부", "생활안전부"]
 DEFAULT_PASSWORD = "123456"
 
 
@@ -150,9 +149,6 @@ TEACHER_SELECT = (
 # ---------- 관리자: 교사 등록/수정/권한관리 (담당: yamako8119-ai) ----------
 @app.post("/teachers", status_code=201)
 def create_teacher(payload: TeacherCreate):
-    if payload.department not in DEPARTMENTS:
-        raise HTTPException(status_code=400, detail=f"department는 {DEPARTMENTS} 중 하나여야 합니다.")
-
     conn = get_connection()
     try:
         cur = conn.execute(
@@ -183,9 +179,6 @@ def create_teacher(payload: TeacherCreate):
 
 @app.put("/teachers/{teacher_id}")
 def update_teacher(teacher_id: int, payload: TeacherUpdate):
-    if payload.department is not None and payload.department not in DEPARTMENTS:
-        raise HTTPException(status_code=400, detail=f"department는 {DEPARTMENTS} 중 하나여야 합니다.")
-
     fields = payload.model_dump(exclude_unset=True)
     if not fields:
         raise HTTPException(status_code=400, detail="수정할 내용이 없습니다.")
