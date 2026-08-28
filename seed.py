@@ -32,9 +32,11 @@ for table in ["Group_Member", "Groups", "Completion", "Notification", "Announcem
     cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
 
 # ── User: 관리자 1명 + 교사 30명 (아이디 = 이름, 초기 비밀번호 = 123456) ──
-all_name_combos = [s + g for s in SURNAMES for g in GIVEN]
+FIXED_TEACHER_NAMES = ["방인배", "황병남", "정경원"]
+
+all_name_combos = [s + g for s in SURNAMES for g in GIVEN if s + g not in FIXED_TEACHER_NAMES]
 random.shuffle(all_name_combos)
-teacher_names = all_name_combos[:30]
+teacher_names = FIXED_TEACHER_NAMES + all_name_combos[: 30 - len(FIXED_TEACHER_NAMES)]
 
 users = []
 users.append(("정교장", "admin"))  # id 1
