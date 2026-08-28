@@ -5,6 +5,7 @@
 - 교사 30명 + 관리자 1명
 """
 
+import hashlib
 import random
 import sqlite3
 from datetime import datetime, timedelta
@@ -20,36 +21,42 @@ GIVEN = [
 DEPARTMENTS = ["교무부", "연구부", "과학정보부", "창의체험부", "생활안전부"]
 SUBJECTS = ["국어", "영어", "수학", "과학", "정보", "사회", "도덕", "음악", "미술", "체육", "기술가정"]
 
+DEFAULT_PASSWORD_HASH = hashlib.sha256("123456".encode()).hexdigest()
+
 conn = sqlite3.connect("database.db")
 cur = conn.cursor()
 
 # 기존 데이터 초기화 (재실행 대비)
-for table in ["Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
+for table in ["AcademicSchedule", "Attachment", "Message_Recipient", "Message", "Memo", "Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
     cur.execute(f"DELETE FROM {table}")
     cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
 
-# ── User: 관리자 1명 + 교사 30명 ─────────────────────────────
+# ── User: 관리자 1명 + 교사 30명 (아이디 = 이름, 초기 비밀번호 = 123456) ──
+FIXED_TEACHER_NAMES = ["방인배", "황병남", "정경원"]
+
+all_name_combos = [s + g for s in SURNAMES for g in GIVEN if s + g not in FIXED_TEACHER_NAMES]
+random.shuffle(all_name_combos)
+teacher_names = FIXED_TEACHER_NAMES + all_name_combos[: 30 - len(FIXED_TEACHER_NAMES)]
+
 users = []
-users.append(("정교장", "admin@school.kr", "admin"))  # id 1
-for i in range(30):
-    name = random.choice(SURNAMES) + random.choice(GIVEN)
-    email = f"teacher{i+1:02d}@school.kr"
-    users.append((name, email, "teacher"))
+users.append(("정교장", "admin"))  # id 1
+for name in teacher_names:
+    users.append((name, "teacher"))
 
 extensions = random.sample(range(1001, 1100), k=len(users))
 
 user_ids = {}
-for (name, email, role), ext in zip(users, extensions):
+for (name, role), ext in zip(users, extensions):
     dept = random.choice(DEPARTMENTS)
     subject = None if role == "admin" else random.choice(SUBJECTS)
     cur.execute(
-        "INSERT INTO User (name, email, password_hash, role, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (name, email, "dummy_hash_for_prototype", role, dept, subject, str(ext)),
+        "INSERT INTO User (name, password_hash, role, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, DEFAULT_PASSWORD_HASH, role, dept, subject, str(ext)),
     )
-    user_ids[email] = cur.lastrowid
+    user_ids[name] = cur.lastrowid
 
-teacher_ids = [uid for email, uid in user_ids.items() if email != "admin@school.kr"]
-admin_id = user_ids["admin@school.kr"]
+teacher_ids = [uid for name, uid in user_ids.items() if name != "정교장"]
+admin_id = user_ids["정교장"]
 
 # ── 담임 배정: 학년(1~3) x 반(1~8) 중 중복 없이 랜덤 배정 ────────
 GRADES = [1, 2, 3]
@@ -80,6 +87,10 @@ events = [
     ("추석 연휴 전 안전교육", "meeting", "2026-09-22T08:30:00", "2026-09-22T09:00:00", "강당", None),
     ("2학기 동아리 발표회", "activity", "2026-09-25T13:00:00", "2026-09-25T16:00:00", "강당", None),
     ("성적 입력 마감", "deadline", "2026-09-30T18:00:00", None, None, None),
+    # 개인일정 (본인만 조회, 알림 발송 없음)
+    ("치과 예약", "personal", "2026-08-21T15:00:00", "2026-08-21T16:00:00", "서울치과", None),
+    ("자녀 학부모 상담", "personal", "2026-09-03T10:00:00", "2026-09-03T11:00:00", None, None),
+    ("연차 - 개인 사유", "personal", "2026-09-17T00:00:00", "2026-09-17T00:00:00", None, None),
 ]
 
 event_ids = []
@@ -92,12 +103,11 @@ for title, type_, start_at, end_at, location, target_group in events:
     )
     event_ids.append((cur.lastrowid, type_, target_group))
 
-# ── Notification: 대상 그룹에 맞는 교사들에게 알림 생성 ─────────
+# ── Notification: 대상 그룹에 맞는 교사들에게 알림 생성 (개인일정 제외) ─
 for event_id, type_, target_group in event_ids:
-    recipients = [
-        uid for email, uid in user_ids.items()
-        if email != "admin@school.kr"
-    ]
+    if type_ == "personal":
+        continue
+    recipients = list(teacher_ids)
     if target_group:
         recipients = [uid for uid in recipients if True]  # group_name 매칭은 조회 시 처리, 시드는 전체 대상 유지
     recipients = random.sample(recipients, k=random.randint(15, len(teacher_ids)))
@@ -172,6 +182,70 @@ for name, description, created_by, is_official in groups:
             (group_id, uid),
         )
 
+# ── Memo: 개인 캘린더 메모 (일부 교사만 샘플로 작성) ─────────
+memo_samples = [
+    ("2026-08-18", "개학식 준비물 미리 챙기기"),
+    ("2026-08-25", "수행평가 계획서 제출 전 동학년과 검토"),
+    ("2026-09-04", "체육대회 반티 사이즈 확인"),
+    ("2026-09-08", "출제 문제 오탈자 재확인"),
+    ("2026-09-30", "성적 입력 전 엑셀 백업"),
+]
+
+memo_authors = random.sample(teacher_ids, k=len(memo_samples))
+for uid, (date, content) in zip(memo_authors, memo_samples):
+    cur.execute(
+        "INSERT INTO Memo (user_id, date, content) VALUES (?, ?, ?)",
+        (uid, date, content),
+    )
+
+# ── Message: 쪽지 (1명 또는 여러 명에게 발송) ─────────────────
+message_samples = [
+    ("체육대회 관련해서 잠깐 얘기 가능하실까요?", 1),      # 1명에게
+    ("이번 주 교과협의회 자료 공유드립니다.", 3),          # 3명에게
+    ("생활기록부 점검 관련 안내드립니다.", 5),             # 5명에게
+]
+
+for content, recipient_count in message_samples:
+    sender = random.choice(teacher_ids)
+    cur.execute(
+        "INSERT INTO Message (sender_id, content) VALUES (?, ?)",
+        (sender, content),
+    )
+    message_id = cur.lastrowid
+
+    candidates = [uid for uid in teacher_ids if uid != sender]
+    recipients = random.sample(candidates, k=recipient_count)
+    for uid in recipients:
+        read = random.random() < 0.5
+        read_at = "2026-08-20T09:00:00" if read else None
+        cur.execute(
+            "INSERT INTO Message_Recipient (message_id, user_id, read_at) VALUES (?, ?, ?)",
+            (message_id, uid, read_at),
+        )
+
+# ── Attachment: 공지사항 1건에 샘플 첨부파일 ───────────────────
+cur.execute("SELECT id FROM Announcement ORDER BY id LIMIT 1")
+first_announcement_id = cur.fetchone()[0]
+cur.execute(
+    """INSERT INTO Attachment (file_name, file_path, file_size, uploaded_by, target_type, target_id)
+       VALUES (?, ?, ?, ?, ?, ?)""",
+    ("교과서_반납_안내.pdf", "uploads/announcement/1/교과서_반납_안내.pdf", 245000, admin_id, "announcement", first_announcement_id),
+)
+
+# ── AcademicSchedule: 학사일정 (학교 전체 기준 캘린더) ─────────
+academic_schedule = [
+    ("2학기 개학", "학기", "2026-08-18", None),
+    ("2학기 중간고사", "시험기간", "2026-09-08", "2026-09-10"),
+    ("재량휴업일", "재량휴업일", "2026-09-21", None),
+    ("추석 연휴", "공휴일", "2026-09-24", "2026-09-27"),
+]
+
+for title, category, start_date, end_date in academic_schedule:
+    cur.execute(
+        "INSERT INTO AcademicSchedule (title, category, start_date, end_date, created_by) VALUES (?, ?, ?, ?, ?)",
+        (title, category, start_date, end_date, admin_id),
+    )
+
 conn.commit()
 
 cur.execute("SELECT COUNT(*) FROM User")
@@ -188,5 +262,15 @@ cur.execute("SELECT COUNT(*) FROM Groups")
 print("Groups:", cur.fetchone()[0])
 cur.execute("SELECT COUNT(*) FROM Group_Member")
 print("Group_Member:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Memo")
+print("Memo:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Message")
+print("Message:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Message_Recipient")
+print("Message_Recipient:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Attachment")
+print("Attachment:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM AcademicSchedule")
+print("AcademicSchedule:", cur.fetchone()[0])
 
 conn.close()

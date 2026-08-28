@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUBE - 교무행정 통합 플랫폼</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 로그인 화면 -->
+  <section id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">CUBE</div>
+      <p class="login-sub">교무행정 통합 플랫폼</p>
+      <form id="login-form" class="login-form">
+        <label for="login-name">이름</label>
+        <input id="login-name" type="text" placeholder="예: 방인배" required autocomplete="username" />
+
+        <label for="login-password">비밀번호</label>
+        <input id="login-password" type="password" placeholder="비밀번호" required autocomplete="current-password" />
+
+        <p id="login-error" class="login-error"></p>
+
+        <button type="submit" class="btn btn-primary">로그인</button>
+      </form>
+      <p class="login-hint">초기 비밀번호: 123456</p>
+    </div>
+  </section>
+
+  <!-- 로그인 후 앱 화면 -->
+  <div id="app" class="hidden">
+    <header class="app-header">
+      <div class="logo">CUBE</div>
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="calendar">캘린더</button>
+        <button class="tab-btn" data-tab="notice">공지등록</button>
+        <button class="tab-btn" data-tab="submission">제출현황</button>
+      </nav>
+      <div class="user-box">
+        <span id="current-user-name"></span>
+        <button id="logout-btn" class="btn btn-ghost">로그아웃</button>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- 캘린더 섹션 -->
+      <section id="calendar" class="tab-panel active">
+        <div class="section-header">
+          <button id="prev-month">&lt;</button>
+          <h2 id="calendar-title"></h2>
+          <button id="next-month">&gt;</button>
+        </div>
+        <table class="calendar-table">
+          <thead>
+            <tr>
+              <th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th>
+            </tr>
+          </thead>
+          <tbody id="calendar-body">
+            <!-- calendar.js 가 채웁니다 -->
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 공지등록 섹션 -->
+      <section id="notice" class="tab-panel">
+        <div class="section-header">
+          <h2>공지등록</h2>
+        </div>
+        <form id="notice-form" class="notice-form">
+          <label for="notice-title">제목</label>
+          <input id="notice-title" type="text" placeholder="공지 제목" required />
+
+          <label for="notice-content">내용 (@이름 으로 교사 지정 가능)</label>
+          <textarea id="notice-content" rows="4" placeholder="공지 내용을 입력하세요. 예) @김민준 확인 부탁드립니다."></textarea>
+
+          <label for="notice-deadline">마감일</label>
+          <input id="notice-deadline" type="date" required />
+
+          <button type="submit" class="btn btn-primary">등록</button>
+        </form>
+
+        <ul id="notice-list" class="notice-list"></ul>
+      </section>
+
+      <!-- 제출현황 섹션 -->
+      <section id="submission" class="tab-panel">
+        <div class="section-header">
+          <h2>제출현황</h2>
+        </div>
+        <table class="submission-table" id="submission-table">
+          <thead>
+            <tr>
+              <th>공지</th><th>교사</th><th>상태</th>
+            </tr>
+          </thead>
+          <tbody id="submission-body">
+            <!-- yamako가 채울 예정 -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <div id="today-popup" class="today-popup hidden"></div>
+  </div>
+
+  <script src="js/calendar.js"></script>
+  <script src="js/submission.js"></script>
+  <script type="module" src="js/notice.js"></script>
+  <script type="module" src="js/notification.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabPanels = document.querySelectorAll(".tab-panel");
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        tabButtons.forEach((b) => b.classList.remove("active"));
+        tabPanels.forEach((p) => p.classList.remove("active"));
+
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>
