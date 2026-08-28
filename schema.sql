@@ -1,18 +1,18 @@
 -- User: 구성원 (교사 전용, 학생 없음)
 CREATE TABLE User (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    name          TEXT NOT NULL UNIQUE,          -- 로그인 아이디로 사용
+    name          TEXT NOT NULL,                  -- 로그인 아이디로 사용 (프로토타입: 중복 허용)
     password_hash TEXT NOT NULL,                  -- 초기 비밀번호: 123456 (해시 저장)
-    role          TEXT NOT NULL CHECK (role IN ('teacher', 'admin')) DEFAULT 'teacher',
-    department    TEXT NOT NULL CHECK (department IN ('교무부', '연구부', '과학정보부', '창의체험부', '생활안전부')),
+    is_admin      INTEGER NOT NULL DEFAULT 0,    -- 관리자 여부 (0=일반 교사, 1=관리자)
+    department    TEXT NOT NULL,                  -- 부서명 (학교마다 다르므로 자유 입력)
     subject       TEXT,                          -- 담당 과목 (국어/영어/수학/과학/정보/사회 등), 없으면 NULL
     is_homeroom   INTEGER NOT NULL DEFAULT 0,     -- 담임 여부
     grade         INTEGER CHECK (grade IS NULL OR grade BETWEEN 1 AND 3),  -- 담임 학년, 담임 아니면 NULL
     class_no      INTEGER,                        -- 담임 반, 담임 아니면 NULL
-    extension     TEXT NOT NULL UNIQUE,            -- 내선번호
+    extension     TEXT NOT NULL,                    -- 내선번호 (프로토타입: 중복 허용)
+    is_deleted    INTEGER NOT NULL DEFAULT 0,      -- 삭제(휴지통) 여부, soft delete
     metadata      TEXT,                            -- 여분 확장 필드 (JSON 문자열), 필요할 때만 사용
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (grade, class_no)                       -- 한 반에 담임은 한 명 (NULL끼리는 중복 허용됨)
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Event: 일정 (회의/행사/제출마감/개인일정)
@@ -86,6 +86,23 @@ CREATE TABLE Group_Member (
     UNIQUE (group_id, user_id)
 );
 
+-- Announcement_Recipient: 공지 대상자 매핑 (다대다). 행이 없으면 전체 공개. (담당: hbn2814)
+CREATE TABLE Announcement_Recipient (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    announcement_id INTEGER NOT NULL REFERENCES Announcement(id),
+    user_id         INTEGER NOT NULL REFERENCES User(id),
+    UNIQUE (announcement_id, user_id)
+);
+
+-- Announcement_Completion: 사용자별 공지 업무 완료 체크 (담당: hbn2814)
+CREATE TABLE Announcement_Completion (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    announcement_id INTEGER NOT NULL REFERENCES Announcement(id),
+    user_id         INTEGER NOT NULL REFERENCES User(id),
+    completed_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (announcement_id, user_id)
+);
+
 -- Memo: 개인 캘린더 메모 (본인만 조회/작성, 공유되지 않음)
 CREATE TABLE Memo (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,7 +127,7 @@ CREATE TABLE PersonalEvent (
 CREATE TABLE AcademicSchedule (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     title       TEXT NOT NULL,                      -- 예: "여름방학", "1학기 기말고사"
-    category    TEXT NOT NULL CHECK (category IN ('학기', '방학', '시험기간', '공휴일', '재량휴업일', '기타')),
+    category    TEXT NOT NULL CHECK (category IN ('공휴일', '시험', '행사', '창체', '동아리', '기타')),
     start_date  TEXT NOT NULL,                       -- YYYY-MM-DD
     end_date    TEXT,                                -- 기간이면 종료일, 하루짜리면 NULL
     created_by  INTEGER NOT NULL REFERENCES User(id),
@@ -159,3 +176,5 @@ CREATE INDEX idx_personal_event_teacher_date ON PersonalEvent(teacher_name, date
 CREATE INDEX idx_message_recipient_user ON Message_Recipient(user_id);
 CREATE INDEX idx_attachment_target  ON Attachment(target_type, target_id);
 CREATE INDEX idx_academic_schedule_date ON AcademicSchedule(start_date);
+CREATE INDEX idx_announcement_recipient_user ON Announcement_Recipient(user_id);
+CREATE INDEX idx_announcement_completion_user ON Announcement_Completion(user_id);

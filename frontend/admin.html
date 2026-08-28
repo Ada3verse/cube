@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CUBE - 관리자 페이지</title>
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" />
   <style>
     .admin-layout { display: flex; min-height: calc(100vh - 61px); }
+    .section-header .btn { width: auto; height: auto; border-radius: 999px; white-space: nowrap; }
+    .header-btn-group { display: flex; align-items: center; gap: 8px; }
+    .icon-btn { display: inline-flex !important; align-items: center; justify-content: center; padding: 0 !important; width: 38px !important; height: 38px !important; }
+    .icon-btn .material-symbols-outlined { font-size: 20px; }
     .admin-sidebar { width: 200px; flex-shrink: 0; background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; }
     .admin-nav-btn { display: block; width: 100%; text-align: left; padding: 12px 20px; border: none; background: none; cursor: pointer; font-size: 0.9rem; color: var(--text); border-left: 3px solid transparent; }
     .admin-nav-btn:hover { background: var(--bg-soft); }
@@ -18,12 +23,54 @@
     .admin-form input, .admin-form select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; }
     .admin-form label.checkbox { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--text-muted); }
     .admin-table { width: 100%; border-collapse: collapse; background: var(--white); }
-    .admin-table th { background: var(--green-lighter); color: #1f4d33; padding: 10px; text-align: left; }
-    .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
-    .role-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
-    .role-badge.admin { background: var(--danger); color: #fff; }
-    .role-badge.teacher { background: var(--mint); color: #1a3d40; }
+    #teacher-table { table-layout: fixed; }
+    #teacher-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+    .grade-class-cell { white-space: nowrap; }
+    .admin-table th { background: var(--green-lighter); color: #1f4d33; padding: 10px; text-align: center; }
+    .admin-table th.sortable { cursor: pointer; user-select: none; }
+    .admin-table th.sortable:hover { background: var(--green-light); }
+    .admin-table th.sortable .sort-arrow { display: inline-block; width: 1em; opacity: 0.5; }
+    .admin-table th.sortable.sort-active .sort-arrow { opacity: 1; }
+    .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; text-align: center; }
+    #teacher-table-body tr:not(.edit-row) { cursor: pointer; }
+    #teacher-table-body tr:not(.edit-row):hover { background: var(--bg-soft); }
+    #groups-table-body tr:not(.edit-row):not(.group-members-row) { cursor: pointer; }
+    #groups-table-body tr:not(.edit-row):not(.group-members-row):hover { background: var(--bg-soft); }
+    .schedule-layout { display: flex; gap: 16px; align-items: flex-start; }
+    .schedule-category-panel { display: flex; flex-direction: column; gap: 6px; width: 100px; flex-shrink: 0; }
+    .schedule-category-label { height: 42px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 1.05rem; font-weight: 700; color: #1f4d33; background: var(--green-lighter); border-radius: 10px; box-sizing: border-box; }
+    .quick-add-input { width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 4px; font-size: 0.78rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft); color: var(--text); transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease; }
+    .quick-add-input:focus { outline: none; border-color: var(--mint-dark); background: var(--white); box-shadow: 0 0 0 3px rgba(111, 179, 184, 0.18); }
+    .category-select-btn { border: 2px solid transparent; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; font-weight: 700; color: #fff; background: var(--cat-color); cursor: pointer; text-align: left; opacity: 0.5; }
+    .category-select-btn:hover { opacity: 0.8; }
+    .category-select-btn.active { opacity: 1; border-color: var(--text); }
+    #schedule-calendar-table { flex: 1; }
+    #schedule-calendar-table td { cursor: pointer; text-align: left; width: 20%; }
+    #schedule-calendar-table td.empty { cursor: default; }
+    #schedule-calendar-table td:not(.empty):hover { background: var(--bg-soft); }
+    .schedule-day-num { font-weight: 600; margin-bottom: 4px; }
+    .schedule-item-badge { display: flex; align-items: center; justify-content: space-between; gap: 4px; color: #fff; border-radius: 6px; padding: 1px 4px; font-size: 0.7rem; margin-bottom: 2px; }
+    .schedule-item-badge .badge-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .schedule-item-badge .badge-delete { display: none; flex-shrink: 0; font-weight: 700; cursor: pointer; padding: 0 2px; }
+    .schedule-item-badge:hover .badge-delete { display: inline; }
+    .edit-row td { padding: 6px 10px; }
+    .edit-row input { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; width: 100%; box-sizing: border-box; }
+    .edit-row input[type="number"] { width: 50px; }
+    .edit-row input[type="checkbox"] { width: auto; }
+    .admin-toggle-btn { padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--white); color: var(--text-muted); border: 1px solid transparent; cursor: pointer; }
+    .admin-toggle-btn:hover { border-color: var(--border); }
+    .admin-toggle-btn.active { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .homeroom-toggle-btn { padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--white); color: var(--text-muted); border: 1px solid transparent; cursor: pointer; min-width: 32px; }
+    .homeroom-toggle-btn:hover { border-color: var(--border); }
+    .homeroom-toggle-btn.active { background: var(--green-light); color: #1f4d33; border-color: var(--green-light); }
     .pin-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; background: var(--green-light); color: #1f4d33; }
+    .server-status-widget { position: fixed; bottom: 12px; left: 12px; width: 176px; box-sizing: border-box; background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.65rem; color: var(--text-muted); line-height: 1.6; box-shadow: 0 4px 12px rgba(0,0,0,0.06); z-index: 100; white-space: normal; word-break: break-word; }
+    .server-status-widget b { color: var(--text); }
+    .status-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .status-icon { font-size: 16px; color: var(--mint-dark); flex-shrink: 0; }
+    .disk-bar-track { flex: 1; height: 10px; background: var(--bg-soft); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+    .disk-bar-fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
     .admin-msg { font-size: 0.85rem; color: var(--danger); min-height: 1.2em; }
   </style>
 </head>
@@ -43,42 +90,44 @@
     <aside class="admin-sidebar">
       <button class="admin-nav-btn active" data-view="users">사용자 등록</button>
       <button class="admin-nav-btn" data-view="schedule">학사일정</button>
-      <button class="admin-nav-btn" data-view="notices">공지사항 관리</button>
+      <button class="admin-nav-btn" data-view="groups">그룹 관리</button>
     </aside>
 
     <div class="admin-content">
 
       <!-- ── 사용자 등록 ── -->
       <section id="view-users" class="admin-view active">
-        <div class="section-header"><h2>교사 등록</h2></div>
-        <form id="create-form" class="admin-form">
-          <input name="name" placeholder="이름" required />
-          <select name="role">
-            <option value="teacher">teacher</option>
-            <option value="admin">admin</option>
-          </select>
-          <select name="department" required>
-            <option value="교무부">교무부</option>
-            <option value="연구부">연구부</option>
-            <option value="과학정보부">과학정보부</option>
-            <option value="창의체험부">창의체험부</option>
-            <option value="생활안전부">생활안전부</option>
-          </select>
-          <input name="subject" placeholder="과목 (선택)" />
-          <label class="checkbox"><input type="checkbox" name="is_homeroom" /> 담임</label>
-          <input name="grade" type="number" min="1" max="3" placeholder="학년" style="width:70px" />
-          <input name="class_no" type="number" min="1" placeholder="반" style="width:70px" />
-          <input name="extension" placeholder="내선번호" required style="width:100px" />
-          <button type="submit" class="btn btn-primary">등록</button>
-        </form>
+        <div class="section-header">
+          <h2>교사 목록</h2>
+          <div class="header-btn-group">
+            <button id="add-teacher-btn" class="btn btn-primary" onclick="startAddTeacher()">등록</button>
+            <button id="trash-btn" class="btn btn-ghost icon-btn" onclick="showTrashView()" title="휴지통">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
+        </div>
         <p id="users-msg" class="admin-msg"></p>
-
-        <div class="section-header"><h2>교사 목록</h2></div>
-        <table class="admin-table">
+        <table class="admin-table" id="teacher-table">
+          <colgroup>
+            <col style="width:100px" />
+            <col style="width:110px" />
+            <col style="width:90px" />
+            <col style="width:110px" />
+            <col style="width:110px" />
+            <col style="width:150px" />
+            <col style="width:95px" />
+            <col style="width:140px" />
+          </colgroup>
           <thead>
             <tr>
-              <th>ID</th><th>이름</th><th>권한</th><th>부서</th><th>과목</th>
-              <th>담임</th><th>학년/반</th><th>내선</th><th>관리</th>
+              <th class="sortable" data-sort="is_admin">권한 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="name">이름 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="department">부서 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="subject">과목 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="is_homeroom">담임 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="grade">학년/반 <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort="extension">내선 <span class="sort-arrow"></span></th>
+              <th>삭제</th>
             </tr>
           </thead>
           <tbody id="teacher-table-body"></tbody>
@@ -87,30 +136,30 @@
 
       <!-- ── 학사일정 ── -->
       <section id="view-schedule" class="admin-view">
-        <div class="section-header"><h2>학사일정 등록</h2></div>
-        <form id="schedule-form" class="admin-form">
-          <input name="title" placeholder="제목 (예: 여름방학)" required />
-          <select name="category" required>
-            <option value="학기">학기</option>
-            <option value="방학">방학</option>
-            <option value="시험기간">시험기간</option>
-            <option value="공휴일">공휴일</option>
-            <option value="재량휴업일">재량휴업일</option>
-            <option value="기타">기타</option>
-          </select>
-          <input name="start_date" type="date" required />
-          <input name="end_date" type="date" placeholder="종료일 (선택)" />
-          <button type="submit" class="btn btn-primary">등록</button>
-        </form>
+        <div class="section-header">
+          <button id="schedule-prev-month" class="btn btn-ghost icon-btn">&lt;</button>
+          <h2 id="schedule-calendar-title"></h2>
+          <button id="schedule-next-month" class="btn btn-ghost icon-btn">&gt;</button>
+        </div>
+        <div class="schedule-layout">
+          <div class="schedule-category-panel">
+            <div class="schedule-category-label">분류 선택</div>
+            <button class="category-select-btn active" data-category="공휴일" style="--cat-color:#e0555f" onclick="selectScheduleCategory('공휴일')">공휴일</button>
+            <button class="category-select-btn" data-category="시험" style="--cat-color:#e0954f" onclick="selectScheduleCategory('시험')">시험</button>
+            <button class="category-select-btn" data-category="행사" style="--cat-color:#9b7fd4" onclick="selectScheduleCategory('행사')">행사</button>
+            <button class="category-select-btn" data-category="창체" style="--cat-color:#5fa8d3" onclick="selectScheduleCategory('창체')">창체</button>
+            <button class="category-select-btn" data-category="동아리" style="--cat-color:#d97fb0" onclick="selectScheduleCategory('동아리')">동아리</button>
+            <button class="category-select-btn" data-category="기타" style="--cat-color:#9e9e9e" onclick="selectScheduleCategory('기타')">기타</button>
+          </div>
+          <table class="calendar-table" id="schedule-calendar-table">
+            <thead>
+              <tr><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>
+            </thead>
+            <tbody id="schedule-calendar-body"></tbody>
+          </table>
+        </div>
+        <p style="margin-top:8px; font-size:0.85rem; color:var(--text-muted);">왼쪽에서 분류를 고른 뒤 날짜 칸을 클릭하면 그 분류 색상으로 하루짜리 일정이 바로 등록돼요.</p>
         <p id="schedule-msg" class="admin-msg"></p>
-
-        <div class="section-header"><h2>학사일정 목록</h2></div>
-        <table class="admin-table">
-          <thead>
-            <tr><th>제목</th><th>구분</th><th>시작일</th><th>종료일</th></tr>
-          </thead>
-          <tbody id="schedule-table-body"></tbody>
-        </table>
       </section>
 
       <!-- ── 공지사항 관리 ── -->
@@ -125,12 +174,53 @@
         </table>
       </section>
 
+      <!-- ── 그룹 관리 ── -->
+      <section id="view-groups" class="admin-view">
+        <div class="section-header">
+          <h2>공식 그룹 관리</h2>
+          <button id="add-group-btn" class="btn btn-primary" onclick="startAddGroup()">등록</button>
+        </div>
+        <p id="groups-msg" class="admin-msg"></p>
+        <table class="admin-table">
+          <thead>
+            <tr><th>그룹명</th><th>그룹원</th><th>멤버 수</th><th>관리</th></tr>
+          </thead>
+          <tbody id="groups-table-body"></tbody>
+        </table>
+      </section>
+
+      <!-- ── 휴지통 ── -->
+      <section id="view-trash" class="admin-view">
+        <div class="section-header"><h2>휴지통 (삭제된 교사)</h2></div>
+        <p id="trash-msg" class="admin-msg"></p>
+        <table class="admin-table">
+          <thead>
+            <tr><th>ID</th><th>이름</th><th>부서</th><th>과목</th><th>내선</th><th>관리</th></tr>
+          </thead>
+          <tbody id="trash-table-body"></tbody>
+        </table>
+      </section>
+
     </div>
+  </div>
+
+  <div class="server-status-widget" id="server-status-widget">
+    <div class="status-row" id="status-disk-row" title="">
+      <span class="material-symbols-outlined status-icon">hard_drive</span>
+      <div class="disk-bar-track">
+        <div class="disk-bar-fill" id="disk-bar-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div>RAM: <b id="status-ram">-</b></div>
+    <div>서버 시각: <b id="status-time">-</b></div>
   </div>
 
   <script>
     const API_BASE = "http://127.0.0.1:8000";
-    const CURRENT_ADMIN_ID = JSON.parse(localStorage.getItem("cube_user") || "null")?.id ?? 1;
+
+    // TODO: 로그인/관리자 권한 가드는 나중에 다시 켜기 (지금은 테스트 편의상 비활성화)
+    const CURRENT_USER = JSON.parse(localStorage.getItem("cube_user") || "null");
+    const CURRENT_ADMIN_ID = CURRENT_USER?.id ?? 1;
 
     // ── 네비게이션 전환 ──
     document.querySelectorAll(".admin-nav-btn").forEach((btn) => {
@@ -142,6 +232,12 @@
       });
     });
 
+    function showTrashView() {
+      document.querySelectorAll(".admin-nav-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".admin-view").forEach((v) => v.classList.remove("active"));
+      document.getElementById("view-trash").classList.add("active");
+    }
+
     function flashMsg(elId, text) {
       const el = document.getElementById(elId);
       el.textContent = text;
@@ -149,101 +245,578 @@
     }
 
     // ── 사용자 등록/목록 ──
+    let currentTeachers = [];
+    let teacherSort = { key: null, dir: 1 };
+    let editingTeacherId = null; // null | "new" | <teacher id>
+
     async function loadTeachers() {
       const res = await fetch(`${API_BASE}/teachers`);
-      const teachers = await res.json();
-      document.getElementById("teacher-table-body").innerHTML = teachers
-        .map(
-          (t) => `
-        <tr>
-          <td>${t.id}</td>
+      currentTeachers = await res.json();
+      renderTeachers();
+    }
+
+    function compareValues(a, b) {
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+      if (typeof a === "string") return a.localeCompare(b, "ko");
+      return a - b;
+    }
+
+    function startAddTeacher() {
+      if (editingTeacherId !== null) return;
+      editingTeacherId = "new";
+      renderTeachers();
+    }
+
+    function startEditTeacher(id) {
+      if (editingTeacherId !== null) return;
+      editingTeacherId = id;
+      renderTeachers();
+    }
+
+    function cancelTeacherEdit() {
+      editingTeacherId = null;
+      renderTeachers();
+    }
+
+    function renderEditRow(t) {
+      const isNew = t === null;
+      const v = t || { id: null, name: "", is_admin: false, department: "", subject: "", is_homeroom: false, grade: "", class_no: "", extension: "" };
+      return `
+        <tr class="edit-row">
+          <td>${
+            isNew
+              ? "-"
+              : `<button class="admin-toggle-btn ${v.is_admin ? "active" : ""}" onclick="event.stopPropagation(); toggleAdmin(${v.id}, ${v.is_admin})">관리자</button>`
+          }</td>
+          <td><input id="edit-name" value="${v.name ?? ""}" placeholder="이름" /></td>
+          <td><input id="edit-department" value="${v.department ?? ""}" placeholder="부서" /></td>
+          <td><input id="edit-subject" value="${v.subject ?? ""}" placeholder="과목" /></td>
+          <td>${
+            isNew
+              ? "-"
+              : `<button class="homeroom-toggle-btn ${v.is_homeroom ? "active" : ""}" onclick="event.stopPropagation(); toggleHomeroom(${v.id}, ${v.is_homeroom})">${v.is_homeroom ? "Y" : ""}</button>`
+          }</td>
+          <td class="grade-class-cell">
+            <input type="number" id="edit-grade" min="1" max="3" value="${v.grade ?? ""}" style="width:40px" />학년
+            <input type="number" id="edit-classno" min="1" value="${v.class_no ?? ""}" style="width:40px" />반
+          </td>
+          <td><input id="edit-extension" value="${v.extension ?? ""}" placeholder="내선" /></td>
+          <td>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); ${isNew ? "saveNewTeacher()" : `saveEditTeacher(${v.id})`}">저장</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); cancelTeacherEdit()">취소</button>
+          </td>
+        </tr>`;
+    }
+
+    function renderDisplayRow(t) {
+      return `
+        <tr onclick="startEditTeacher(${t.id})">
+          <td><button class="admin-toggle-btn ${t.is_admin ? "active" : ""}" onclick="event.stopPropagation(); toggleAdmin(${t.id}, ${t.is_admin})">관리자</button></td>
           <td>${t.name}</td>
-          <td><span class="role-badge ${t.role}">${t.role}</span></td>
           <td>${t.department}</td>
           <td>${t.subject ?? "-"}</td>
-          <td>${t.is_homeroom ? "Y" : "-"}</td>
+          <td><button class="homeroom-toggle-btn ${t.is_homeroom ? "active" : ""}" onclick="event.stopPropagation(); toggleHomeroom(${t.id}, ${t.is_homeroom})">${t.is_homeroom ? "Y" : ""}</button></td>
           <td>${t.is_homeroom ? `${t.grade}학년 ${t.class_no}반` : "-"}</td>
           <td>${t.extension}</td>
-          <td><button class="btn btn-ghost" onclick="toggleRole(${t.id}, '${t.role}')">권한 전환</button></td>
-        </tr>`
-        )
-        .join("");
+          <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deleteTeacher(${t.id})">삭제</button></td>
+        </tr>`;
     }
 
-    async function toggleRole(id, currentRole) {
-      const newRole = currentRole === "admin" ? "teacher" : "admin";
-      const res = await fetch(`${API_BASE}/teachers/${id}/role`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
+    function renderTeachers() {
+      let rows = [...currentTeachers];
+      const { key, dir } = teacherSort;
+
+      if (key) {
+        rows.sort((a, b) => {
+          let result;
+          if (key === "grade") {
+            result = compareValues(a.grade, b.grade) || compareValues(a.class_no, b.class_no);
+          } else {
+            result = compareValues(a[key], b[key]);
+          }
+          return result * dir;
+        });
+      }
+
+      document.querySelectorAll("#view-users th.sortable").forEach((th) => {
+        th.classList.toggle("sort-active", th.dataset.sort === key);
+        th.querySelector(".sort-arrow").textContent =
+          th.dataset.sort === key ? (dir === 1 ? "▲" : "▼") : "";
       });
-      if (!res.ok) return flashMsg("users-msg", "권한 변경 실패");
-      loadTeachers();
+
+      let html = editingTeacherId === "new" ? renderEditRow(null) : "";
+      html += rows
+        .map((t) => (t.id === editingTeacherId ? renderEditRow(t) : renderDisplayRow(t)))
+        .join("");
+
+      document.getElementById("teacher-table-body").innerHTML = html;
     }
 
-    document.getElementById("create-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const data = new FormData(form);
-      const payload = {
-        name: data.get("name"),
-        role: data.get("role"),
-        department: data.get("department"),
-        subject: data.get("subject") || null,
-        is_homeroom: form.querySelector("[name=is_homeroom]").checked,
-        grade: data.get("grade") ? Number(data.get("grade")) : null,
-        class_no: data.get("class_no") ? Number(data.get("class_no")) : null,
-        extension: data.get("extension"),
-      };
+    document.querySelectorAll("#view-users th.sortable").forEach((th) => {
+      th.addEventListener("click", () => {
+        if (editingTeacherId !== null) return;
+        const key = th.dataset.sort;
+        if (teacherSort.key === key) {
+          teacherSort.dir *= -1;
+        } else {
+          teacherSort = { key, dir: 1 };
+        }
+        renderTeachers();
+      });
+    });
 
+    function readTeacherEditForm() {
+      return {
+        name: document.getElementById("edit-name").value.trim(),
+        department: document.getElementById("edit-department").value.trim(),
+        subject: document.getElementById("edit-subject").value.trim() || null,
+        grade: document.getElementById("edit-grade").value ? Number(document.getElementById("edit-grade").value) : null,
+        class_no: document.getElementById("edit-classno").value ? Number(document.getElementById("edit-classno").value) : null,
+        extension: document.getElementById("edit-extension").value.trim(),
+      };
+    }
+
+    async function saveNewTeacher() {
+      const payload = readTeacherEditForm();
+      if (!payload.name || !payload.department || !payload.extension) {
+        return flashMsg("users-msg", "이름/부서/내선번호는 필수입니다.");
+      }
       const res = await fetch(`${API_BASE}/teachers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         return flashMsg("users-msg", "등록 실패: " + (err.detail || res.status));
       }
-
-      form.reset();
+      editingTeacherId = null;
       loadTeachers();
-    });
+    }
 
-    // ── 학사일정 ──
-    async function loadSchedule() {
-      const res = await fetch(`${API_BASE}/academic-schedule`);
+    async function saveEditTeacher(id) {
+      const payload = readTeacherEditForm();
+      if (!payload.name || !payload.department || !payload.extension) {
+        return flashMsg("users-msg", "이름/부서/내선번호는 필수입니다.");
+      }
+      const res = await fetch(`${API_BASE}/teachers/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("users-msg", "수정 실패: " + (err.detail || res.status));
+      }
+      editingTeacherId = null;
+      loadTeachers();
+    }
+
+    async function toggleAdmin(id, currentIsAdmin) {
+      const res = await fetch(`${API_BASE}/teachers/${id}/admin`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_admin: !currentIsAdmin }),
+      });
+      if (!res.ok) return flashMsg("users-msg", "권한 변경 실패");
+      loadTeachers();
+    }
+
+    async function toggleHomeroom(id, currentIsHomeroom) {
+      const res = await fetch(`${API_BASE}/teachers/${id}/homeroom`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_homeroom: !currentIsHomeroom }),
+      });
+      if (!res.ok) return flashMsg("users-msg", "담임 여부 변경 실패");
+      loadTeachers();
+    }
+
+    async function deleteTeacher(id) {
+      const res = await fetch(`${API_BASE}/teachers/${id}`, { method: "DELETE" });
+      if (!res.ok) return flashMsg("users-msg", "삭제 실패");
+      flashMsg("users-msg", "휴지통으로 이동했습니다.");
+      loadTeachers();
+      loadTrash();
+    }
+
+    // ── 그룹 관리 ──
+    let currentGroups = [];
+    let editingGroupId = null; // null | "new" | <group id>
+    let expandedGroupId = null;
+    let expandedGroupMembers = [];
+
+    async function loadGroups() {
+      const res = await fetch(`${API_BASE}/groups?official=true`);
+      currentGroups = await res.json();
+      renderGroups();
+    }
+
+    function startAddGroup() {
+      if (editingGroupId !== null) return;
+      editingGroupId = "new";
+      renderGroups();
+    }
+
+    function startEditGroup(id) {
+      if (editingGroupId !== null) return;
+      editingGroupId = id;
+      renderGroups();
+    }
+
+    function cancelGroupEdit() {
+      editingGroupId = null;
+      renderGroups();
+    }
+
+    async function saveNewGroup() {
+      const name = document.getElementById("group-edit-name").value.trim();
+      if (!name) return flashMsg("groups-msg", "그룹명을 입력하세요.");
+
+      const res = await fetch(`${API_BASE}/groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description: null, created_by: CURRENT_ADMIN_ID }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("groups-msg", "등록 실패: " + (err.detail || res.status));
+      }
+      editingGroupId = null;
+      loadGroups();
+    }
+
+    async function saveEditGroup(id) {
+      const name = document.getElementById("group-edit-name").value.trim();
+      if (!name) return flashMsg("groups-msg", "그룹명을 입력하세요.");
+
+      const res = await fetch(`${API_BASE}/groups/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("groups-msg", "수정 실패: " + (err.detail || res.status));
+      }
+      editingGroupId = null;
+      loadGroups();
+    }
+
+    async function deleteGroup(id, name) {
+      if (!confirm(`"${name}" 그룹을 삭제하시겠습니까? 소속된 멤버 정보도 함께 삭제됩니다.`)) return;
+      const res = await fetch(`${API_BASE}/groups/${id}`, { method: "DELETE" });
+      if (!res.ok) return flashMsg("groups-msg", "삭제 실패");
+      if (expandedGroupId === id) expandedGroupId = null;
+      loadGroups();
+    }
+
+    async function toggleGroupMembers(id) {
+      if (expandedGroupId === id) {
+        expandedGroupId = null;
+        renderGroups();
+        return;
+      }
+      expandedGroupId = id;
+      const res = await fetch(`${API_BASE}/groups/${id}/members`);
+      expandedGroupMembers = await res.json();
+      renderGroups();
+    }
+
+    async function addGroupMember(groupId) {
+      const select = document.getElementById("group-member-select");
+      const userId = Number(select.value);
+      if (!userId) return;
+
+      const res = await fetch(`${API_BASE}/groups/${groupId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return flashMsg("groups-msg", "멤버 추가 실패: " + (err.detail || res.status));
+      }
+
+      const membersRes = await fetch(`${API_BASE}/groups/${groupId}/members`);
+      expandedGroupMembers = await membersRes.json();
+      loadGroups();
+    }
+
+    async function removeGroupMember(groupId, userId) {
+      const res = await fetch(`${API_BASE}/groups/${groupId}/members/${userId}`, { method: "DELETE" });
+      if (!res.ok) return flashMsg("groups-msg", "멤버 제거 실패");
+
+      const membersRes = await fetch(`${API_BASE}/groups/${groupId}/members`);
+      expandedGroupMembers = await membersRes.json();
+      loadGroups();
+    }
+
+    function renderGroupEditRow(group) {
+      const isNew = group === null;
+      return `
+        <tr class="edit-row">
+          <td><input id="group-edit-name" value="${isNew ? "" : group.name}" placeholder="그룹명" /></td>
+          <td style="text-align:left;">${isNew ? "-" : (group.members ?? "-")}</td>
+          <td>${isNew ? "-" : group.member_count}</td>
+          <td>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); ${isNew ? "saveNewGroup()" : `saveEditGroup(${group.id})`}">저장</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); cancelGroupEdit()">취소</button>
+          </td>
+        </tr>`;
+    }
+
+    function renderGroupMembersRow(group) {
+      const memberIds = new Set(expandedGroupMembers.map((m) => m.user_id));
+      const availableTeachers = currentTeachers.filter((t) => !memberIds.has(t.id));
+      return `
+        <tr class="group-members-row">
+          <td colspan="4" style="text-align:left; background:var(--bg-soft);">
+            <div style="padding:8px;">
+              <div style="font-weight:700; margin-bottom:6px;">${group.name} 멤버</div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                ${
+                  expandedGroupMembers
+                    .map(
+                      (m) => `
+                  <span class="pin-badge" style="display:inline-flex; align-items:center; gap:4px;">
+                    ${m.name}
+                    <span style="cursor:pointer; font-weight:700;" onclick="removeGroupMember(${group.id}, ${m.user_id})">×</span>
+                  </span>`
+                    )
+                    .join("") || "<span style='color:var(--text-muted); font-size:0.85rem;'>멤버가 없습니다.</span>"
+                }
+              </div>
+              <div style="display:flex; gap:6px;">
+                <select id="group-member-select" style="flex:1; max-width:220px;">
+                  ${availableTeachers.map((t) => `<option value="${t.id}">${t.name}</option>`).join("")}
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="addGroupMember(${group.id})">추가</button>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+    }
+
+    function renderGroups() {
+      let html = editingGroupId === "new" ? renderGroupEditRow(null) : "";
+      html += currentGroups
+        .map((g) => {
+          let row;
+          if (g.id === editingGroupId) {
+            row = renderGroupEditRow(g);
+          } else {
+            row = `
+        <tr onclick="startEditGroup(${g.id})">
+          <td>${g.name}</td>
+          <td style="text-align:left;">${g.members ?? "-"}</td>
+          <td>${g.member_count}</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); toggleGroupMembers(${g.id})">멤버 관리</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deleteGroup(${g.id}, '${g.name.replace(/'/g, "\\'")}')">삭제</button>
+          </td>
+        </tr>`;
+          }
+          if (expandedGroupId === g.id) {
+            row += renderGroupMembersRow(g);
+          }
+          return row;
+        })
+        .join("");
+      document.getElementById("groups-table-body").innerHTML = html;
+    }
+
+    // ── 휴지통 ──
+    async function loadTrash() {
+      const res = await fetch(`${API_BASE}/teachers/trash`);
       const rows = await res.json();
-      document.getElementById("schedule-table-body").innerHTML = rows
+      document.getElementById("trash-table-body").innerHTML = rows
         .map(
-          (s) => `
+          (t) => `
         <tr>
-          <td>${s.title}</td>
-          <td>${s.category}</td>
-          <td>${s.start_date}</td>
-          <td>${s.end_date ?? "-"}</td>
+          <td>${t.id}</td>
+          <td>${t.name}</td>
+          <td>${t.department}</td>
+          <td>${t.subject ?? "-"}</td>
+          <td>${t.extension}</td>
+          <td><button class="btn btn-ghost" onclick="restoreTeacher(${t.id})">복원</button></td>
         </tr>`
         )
         .join("");
     }
 
-    document.getElementById("schedule-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const data = new FormData(form);
-      const payload = {
-        title: data.get("title"),
-        category: data.get("category"),
-        start_date: data.get("start_date"),
-        end_date: data.get("end_date") || null,
-        created_by: CURRENT_ADMIN_ID,
-      };
+    async function restoreTeacher(id) {
+      const res = await fetch(`${API_BASE}/teachers/${id}/restore`, { method: "POST" });
+      if (!res.ok) return flashMsg("trash-msg", "복원 실패");
+      flashMsg("trash-msg", "복원했습니다.");
+      loadTrash();
+      loadTeachers();
+    }
+
+    // ── 학사일정 ──
+    let currentSchedule = [];
+    const SCHEDULE_CATEGORY_COLORS = {
+      공휴일: "#e0555f",
+      시험: "#e0954f",
+      행사: "#9b7fd4",
+      창체: "#5fa8d3",
+      동아리: "#d97fb0",
+      기타: "#9e9e9e",
+    };
+    let scheduleViewYear, scheduleViewMonth;
+    let scheduleAddDate = null; // 클릭해서 빠른 등록 중인 날짜(YYYY-MM-DD) 또는 null
+    let selectedScheduleCategory = "공휴일"; // 좌측 팔레트에서 선택된 분류
+
+    async function loadSchedule() {
+      const res = await fetch(`${API_BASE}/academic-schedule`);
+      currentSchedule = await res.json();
+      renderScheduleCalendar();
+    }
+
+    function pad2(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function scheduleItemsOnDate(dateStr) {
+      return currentSchedule.filter((s) => {
+        const end = s.end_date || s.start_date;
+        return dateStr >= s.start_date && dateStr <= end;
+      });
+    }
+
+    function initScheduleCalendarNav() {
+      const today = new Date();
+      scheduleViewYear = today.getFullYear();
+      scheduleViewMonth = today.getMonth();
+      document.getElementById("schedule-prev-month").addEventListener("click", () => {
+        scheduleViewMonth--;
+        if (scheduleViewMonth < 0) {
+          scheduleViewMonth = 11;
+          scheduleViewYear--;
+        }
+        renderScheduleCalendar();
+      });
+      document.getElementById("schedule-next-month").addEventListener("click", () => {
+        scheduleViewMonth++;
+        if (scheduleViewMonth > 11) {
+          scheduleViewMonth = 0;
+          scheduleViewYear++;
+        }
+        renderScheduleCalendar();
+      });
+    }
+
+    function renderScheduleCalendar() {
+      if (scheduleViewYear === undefined) return;
+      const titleEl = document.getElementById("schedule-calendar-title");
+      const bodyEl = document.getElementById("schedule-calendar-body");
+      titleEl.textContent = `${scheduleViewYear}년 ${scheduleViewMonth + 1}월`;
+
+      const lastDate = new Date(scheduleViewYear, scheduleViewMonth + 1, 0).getDate();
+      const today = new Date();
+
+      // 주(월~금 5칸) 단위로 묶기, 토/일은 건너뜀
+      const weeks = [];
+      let currentWeek = new Array(5).fill(null);
+      for (let d = 1; d <= lastDate; d++) {
+        const dow = new Date(scheduleViewYear, scheduleViewMonth, d).getDay(); // 0=일 ~ 6=토
+        if (dow === 0 || dow === 6) continue;
+        const col = dow - 1; // 0=월 ~ 4=금
+        if (col === 0 && currentWeek.some((x) => x !== null)) {
+          weeks.push(currentWeek);
+          currentWeek = new Array(5).fill(null);
+        }
+        currentWeek[col] = d;
+      }
+      weeks.push(currentWeek);
+
+      bodyEl.innerHTML = "";
+      weeks.forEach((week) => {
+        const row = document.createElement("tr");
+        week.forEach((date) => {
+          const cell = document.createElement("td");
+          if (date === null) {
+            cell.classList.add("empty");
+            row.appendChild(cell);
+            return;
+          }
+
+          const dateStr = `${scheduleViewYear}-${pad2(scheduleViewMonth + 1)}-${pad2(date)}`;
+          const isToday =
+            date === today.getDate() &&
+            scheduleViewMonth === today.getMonth() &&
+            scheduleViewYear === today.getFullYear();
+          if (isToday) cell.classList.add("today");
+
+          if (scheduleAddDate === dateStr) {
+            cell.innerHTML = `
+              <div class="schedule-day-num">${date}</div>
+              <input id="quick-add-title" class="quick-add-input" placeholder="일정명" />
+              <div style="display:flex;gap:4px;">
+                <button class="btn btn-primary btn-sm" style="flex:1;padding:2px;" onclick="event.stopPropagation(); confirmQuickAdd('${dateStr}')">추가</button>
+                <button class="btn btn-ghost btn-sm" style="flex:1;padding:2px;" onclick="event.stopPropagation(); cancelQuickAdd()">취소</button>
+              </div>`;
+          } else {
+            const items = scheduleItemsOnDate(dateStr);
+            cell.innerHTML = `
+              <div class="schedule-day-num">${date}</div>
+              ${items
+                .map(
+                  (it) => `
+                <span class="schedule-item-badge" style="background:${SCHEDULE_CATEGORY_COLORS[it.category] ?? "#9e9e9e"}" title="${it.title} (${it.category})">
+                  <span class="badge-title">${it.title}</span>
+                  <span class="badge-delete" onclick="event.stopPropagation(); deleteScheduleItem(${it.id}, '${it.title.replace(/'/g, "\\'")}')">×</span>
+                </span>`
+                )
+                .join("")}`;
+            cell.addEventListener("click", () => {
+              scheduleAddDate = dateStr;
+              renderScheduleCalendar();
+            });
+          }
+
+          row.appendChild(cell);
+        });
+        bodyEl.appendChild(row);
+      });
+    }
+
+    function selectScheduleCategory(category) {
+      selectedScheduleCategory = category;
+      document.querySelectorAll(".category-select-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.category === category);
+      });
+    }
+
+    async function deleteScheduleItem(id, title) {
+      if (!confirm(`"${title}" 일정을 삭제하시겠습니까?`)) return;
+
+      const res = await fetch(`${API_BASE}/academic-schedule/${id}`, { method: "DELETE" });
+      if (!res.ok) return flashMsg("schedule-msg", "삭제 실패");
+      loadSchedule();
+    }
+
+    function cancelQuickAdd() {
+      scheduleAddDate = null;
+      renderScheduleCalendar();
+    }
+
+    async function confirmQuickAdd(dateStr) {
+      const title = document.getElementById("quick-add-title").value.trim();
+      if (!title) return flashMsg("schedule-msg", "일정명을 입력하세요.");
 
       const res = await fetch(`${API_BASE}/academic-schedule`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          title,
+          category: selectedScheduleCategory,
+          start_date: dateStr,
+          end_date: null,
+          created_by: CURRENT_ADMIN_ID,
+        }),
       });
 
       if (!res.ok) {
@@ -251,9 +824,11 @@
         return flashMsg("schedule-msg", "등록 실패: " + (err.detail || res.status));
       }
 
-      form.reset();
+      scheduleAddDate = null;
       loadSchedule();
-    });
+    }
+
+    initScheduleCalendarNav();
 
     // ── 공지사항 관리 ──
     async function loadNotices() {
@@ -292,9 +867,39 @@
       loadNotices();
     }
 
+    // ── 서버 상태 ──
+    function diskBarColor(percent) {
+      if (percent >= 85) return "#e0555f"; // 위험
+      if (percent >= 60) return "#e0954f"; // 주의
+      return "#6fb3b8"; // 여유
+    }
+
+    async function loadServerStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/server-status`);
+        const s = await res.json();
+
+        const fill = document.getElementById("disk-bar-fill");
+        fill.style.width = `${s.disk_percent}%`;
+        fill.style.background = diskBarColor(s.disk_percent);
+        document.getElementById("status-disk-row").title =
+          `디스크: ${s.disk_used_gb} / ${s.disk_total_gb} GB (${s.disk_percent}%)`;
+
+        document.getElementById("status-ram").textContent =
+          `${s.ram_used_gb} / ${s.ram_total_gb} GB (${s.ram_percent}%)`;
+        document.getElementById("status-time").textContent = s.server_time;
+      } catch {
+        document.getElementById("status-time").textContent = "연결 끊김";
+      }
+    }
+
     loadTeachers();
     loadSchedule();
     loadNotices();
+    loadTrash();
+    loadGroups();
+    loadServerStatus();
+    setInterval(loadServerStatus, 5000);
   </script>
 
 </body>

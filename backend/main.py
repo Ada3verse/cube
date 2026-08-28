@@ -1,13 +1,17 @@
 import hashlib
+import shutil
 import sqlite3
+from datetime import datetime
 from pathlib import Path
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
+import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-DB_PATH = Path(__file__).resolve().parent.parent / "database.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "database.db"
 
 app = FastAPI(title="CUBE API")
 
@@ -36,13 +40,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
-DEPARTMENTS = ["교무부", "연구부", "과학정보부", "창의체험부", "생활안전부"]
 DEFAULT_PASSWORD = "123456"
 
 
 class TeacherCreate(BaseModel):
     name: str
-    role: Literal["teacher", "admin"] = "teacher"
+    is_admin: bool = False
     department: str
     subject: Optional[str] = None
     is_homeroom: bool = False
@@ -61,16 +64,20 @@ class TeacherUpdate(BaseModel):
     extension: Optional[str] = None
 
 
-class RoleUpdate(BaseModel):
-    role: Literal["teacher", "admin"]
+class AdminStatusUpdate(BaseModel):
+    is_admin: bool
 
 
-SCHEDULE_CATEGORIES = ["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
+class HomeroomStatusUpdate(BaseModel):
+    is_homeroom: bool
+
+
+SCHEDULE_CATEGORIES = ["공휴일", "시험", "행사", "창체", "동아리", "기타"]
 
 
 class ScheduleCreate(BaseModel):
     title: str
-    category: Literal["학기", "방학", "시험기간", "공휴일", "재량휴업일", "기타"]
+    category: Literal["공휴일", "시험", "행사", "창체", "동아리", "기타"]
     start_date: str
     end_date: Optional[str] = None
     created_by: int
@@ -87,9 +94,49 @@ class PersonalEventCreate(BaseModel):
     memo: Optional[str] = None
 
 
+class NoticeCreate(BaseModel):
+    title: str
+    content: Optional[str] = None
+    deadline: Optional[str] = None
+    author_id: int
+    target_group: Optional[str] = None
+    recipient_user_ids: List[int] = []
+    recipient_group_ids: List[int] = []
+
+
+class GroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    created_by: int
+
+
+class GroupMemberAdd(BaseModel):
+    user_id: int
+
+
+class GroupUpdate(BaseModel):
+    name: str
+
+
 @app.get("/")
 def read_root():
     return {"message": "CUBE API 서버가 실행 중입니다."}
+
+
+# ---------- 서버 상태 (담당: yamako8119-ai) ----------
+@app.get("/server-status")
+def get_server_status():
+    disk = shutil.disk_usage(BASE_DIR)
+    mem = psutil.virtual_memory()
+    return {
+        "disk_used_gb": round(disk.used / (1024**3), 1),
+        "disk_total_gb": round(disk.total / (1024**3), 1),
+        "disk_percent": round(disk.used / disk.total * 100, 1),
+        "ram_used_gb": round(mem.used / (1024**3), 1),
+        "ram_total_gb": round(mem.total / (1024**3), 1),
+        "ram_percent": mem.percent,
+        "server_time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    }
 
 
 # ---------- 로그인 ----------
@@ -98,8 +145,8 @@ def read_root():
 def login(payload: LoginRequest):
     conn = get_connection()
     row = conn.execute(
-        "SELECT id, name, role, department, subject, password_hash "
-        "FROM User WHERE name = ?",
+        "SELECT id, name, is_admin, department, subject, password_hash "
+        "FROM User WHERE name = ? AND is_deleted = 0",
         (payload.name,),
     ).fetchone()
     conn.close()
@@ -110,7 +157,7 @@ def login(payload: LoginRequest):
     return {
         "id": row["id"],
         "name": row["name"],
-        "role": row["role"],
+        "is_admin": bool(row["is_admin"]),
         "department": row["department"],
         "subject": row["subject"],
     }
@@ -121,15 +168,15 @@ def login(payload: LoginRequest):
 def get_teachers():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, name, role, department, subject, is_homeroom, grade, class_no, extension "
-        "FROM User ORDER BY name"
+        "SELECT id, name, is_admin, department, subject, is_homeroom, grade, class_no, extension "
+        "FROM User WHERE is_deleted = 0 ORDER BY name"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 TEACHER_SELECT = (
-    "SELECT id, name, role, department, subject, is_homeroom, grade, class_no, extension "
+    "SELECT id, name, is_admin, department, subject, is_homeroom, grade, class_no, extension "
     "FROM User WHERE id = ?"
 )
 
@@ -137,31 +184,24 @@ TEACHER_SELECT = (
 # ---------- 관리자: 교사 등록/수정/권한관리 (담당: yamako8119-ai) ----------
 @app.post("/teachers", status_code=201)
 def create_teacher(payload: TeacherCreate):
-    if payload.department not in DEPARTMENTS:
-        raise HTTPException(status_code=400, detail=f"department는 {DEPARTMENTS} 중 하나여야 합니다.")
-
     conn = get_connection()
-    try:
-        cur = conn.execute(
-            """INSERT INTO User (name, password_hash, role, department, subject, is_homeroom, grade, class_no, extension)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                payload.name,
-                hash_password(DEFAULT_PASSWORD),
-                payload.role,
-                payload.department,
-                payload.subject,
-                int(payload.is_homeroom),
-                payload.grade,
-                payload.class_no,
-                payload.extension,
-            ),
-        )
-        conn.commit()
-        new_id = cur.lastrowid
-    except sqlite3.IntegrityError as e:
-        conn.close()
-        raise HTTPException(status_code=409, detail=f"저장 실패 (이름/내선번호/학년-반 중복 가능성): {e}")
+    cur = conn.execute(
+        """INSERT INTO User (name, password_hash, is_admin, department, subject, is_homeroom, grade, class_no, extension)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            payload.name,
+            hash_password(DEFAULT_PASSWORD),
+            int(payload.is_admin),
+            payload.department,
+            payload.subject,
+            int(payload.is_homeroom),
+            payload.grade,
+            payload.class_no,
+            payload.extension,
+        ),
+    )
+    conn.commit()
+    new_id = cur.lastrowid
 
     row = conn.execute(TEACHER_SELECT, (new_id,)).fetchone()
     conn.close()
@@ -170,9 +210,6 @@ def create_teacher(payload: TeacherCreate):
 
 @app.put("/teachers/{teacher_id}")
 def update_teacher(teacher_id: int, payload: TeacherUpdate):
-    if payload.department is not None and payload.department not in DEPARTMENTS:
-        raise HTTPException(status_code=400, detail=f"department는 {DEPARTMENTS} 중 하나여야 합니다.")
-
     fields = payload.model_dump(exclude_unset=True)
     if not fields:
         raise HTTPException(status_code=400, detail="수정할 내용이 없습니다.")
@@ -186,27 +223,82 @@ def update_teacher(teacher_id: int, payload: TeacherUpdate):
         raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
 
     set_clause = ", ".join(f"{k} = ?" for k in fields)
-    try:
-        conn.execute(f"UPDATE User SET {set_clause} WHERE id = ?", list(fields.values()) + [teacher_id])
-        conn.commit()
-    except sqlite3.IntegrityError as e:
-        conn.close()
-        raise HTTPException(status_code=409, detail=f"수정 실패 (이름/내선번호/학년-반 중복 가능성): {e}")
+    conn.execute(f"UPDATE User SET {set_clause} WHERE id = ?", list(fields.values()) + [teacher_id])
+    conn.commit()
 
     row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
     conn.close()
     return dict(row)
 
 
-@app.patch("/teachers/{teacher_id}/role")
-def update_teacher_role(teacher_id: int, payload: RoleUpdate):
+@app.patch("/teachers/{teacher_id}/admin")
+def update_teacher_admin_status(teacher_id: int, payload: AdminStatusUpdate):
     conn = get_connection()
     existing = conn.execute("SELECT id FROM User WHERE id = ?", (teacher_id,)).fetchone()
     if existing is None:
         conn.close()
         raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
 
-    conn.execute("UPDATE User SET role = ? WHERE id = ?", (payload.role, teacher_id))
+    conn.execute("UPDATE User SET is_admin = ? WHERE id = ?", (int(payload.is_admin), teacher_id))
+    conn.commit()
+    row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.patch("/teachers/{teacher_id}/homeroom")
+def update_teacher_homeroom_status(teacher_id: int, payload: HomeroomStatusUpdate):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM User WHERE id = ?", (teacher_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
+
+    conn.execute("UPDATE User SET is_homeroom = ? WHERE id = ?", (int(payload.is_homeroom), teacher_id))
+    conn.commit()
+    row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.delete("/teachers/{teacher_id}", status_code=204)
+def delete_teacher(teacher_id: int):
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM User WHERE id = ? AND is_deleted = 0", (teacher_id,)
+    ).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="교사를 찾을 수 없습니다.")
+
+    conn.execute("UPDATE User SET is_deleted = 1 WHERE id = ?", (teacher_id,))
+    conn.commit()
+    conn.close()
+    return None
+
+
+@app.get("/teachers/trash")
+def get_deleted_teachers():
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, name, department, subject, extension "
+        "FROM User WHERE is_deleted = 1 ORDER BY name"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/teachers/{teacher_id}/restore")
+def restore_teacher(teacher_id: int):
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM User WHERE id = ? AND is_deleted = 1", (teacher_id,)
+    ).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="휴지통에서 해당 교사를 찾을 수 없습니다.")
+
+    conn.execute("UPDATE User SET is_deleted = 0 WHERE id = ?", (teacher_id,))
     conn.commit()
     row = conn.execute(TEACHER_SELECT, (teacher_id,)).fetchone()
     conn.close()
@@ -244,7 +336,202 @@ def create_academic_schedule(payload: ScheduleCreate):
     return dict(row)
 
 
-# ---------- 공지 ----------
+@app.delete("/academic-schedule/{schedule_id}", status_code=204)
+def delete_academic_schedule(schedule_id: int):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM AcademicSchedule WHERE id = ?", (schedule_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="학사일정을 찾을 수 없습니다.")
+
+    conn.execute("DELETE FROM AcademicSchedule WHERE id = ?", (schedule_id,))
+    conn.commit()
+    conn.close()
+    return None
+
+
+# ---------- 관리자: 그룹 관리 (담당: yamako8119-ai) ----------
+@app.get("/groups")
+def get_groups(official: Optional[bool] = None):
+    conn = get_connection()
+    query = (
+        "SELECT g.id, g.name, g.description, g.created_by, g.is_official, g.created_at, "
+        "(SELECT COUNT(*) FROM Group_Member gm WHERE gm.group_id = g.id) AS member_count, "
+        "(SELECT GROUP_CONCAT(name, ', ') FROM ("
+        "   SELECT u.name FROM Group_Member gm2 JOIN User u ON u.id = gm2.user_id "
+        "   WHERE gm2.group_id = g.id ORDER BY u.name"
+        " )) AS members "
+        "FROM Groups g"
+    )
+    params: list = []
+    if official is not None:
+        query += " WHERE g.is_official = ?"
+        params.append(int(official))
+    query += " ORDER BY g.created_at DESC"
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/groups", status_code=201)
+def create_group(payload: GroupCreate):
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO Groups (name, description, created_by, is_official) VALUES (?, ?, ?, 1)",
+        (payload.name, payload.description, payload.created_by),
+    )
+    group_id = cur.lastrowid
+    conn.execute(
+        "INSERT INTO Group_Member (group_id, user_id, role) VALUES (?, ?, 'owner')",
+        (group_id, payload.created_by),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, name, description, created_by, is_official, created_at FROM Groups WHERE id = ?",
+        (group_id,),
+    ).fetchone()
+    conn.close()
+    result = dict(row)
+    result["member_count"] = 1
+    return result
+
+
+@app.put("/groups/{group_id}")
+def update_group(group_id: int, payload: GroupUpdate):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Groups WHERE id = ?", (group_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    conn.execute("UPDATE Groups SET name = ? WHERE id = ?", (payload.name, group_id))
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, name, description, created_by, is_official, created_at FROM Groups WHERE id = ?",
+        (group_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.delete("/groups/{group_id}", status_code=204)
+def delete_group(group_id: int):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Groups WHERE id = ?", (group_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    conn.execute("DELETE FROM Group_Member WHERE group_id = ?", (group_id,))
+    conn.execute("DELETE FROM Groups WHERE id = ?", (group_id,))
+    conn.commit()
+    conn.close()
+    return None
+
+
+@app.get("/groups/{group_id}/members")
+def get_group_members(group_id: int):
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT gm.id, gm.user_id, u.name, gm.role, gm.joined_at
+           FROM Group_Member gm JOIN User u ON u.id = gm.user_id
+           WHERE gm.group_id = ? ORDER BY gm.role, u.name""",
+        (group_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/groups/{group_id}/members", status_code=201)
+def add_group_member(group_id: int, payload: GroupMemberAdd):
+    conn = get_connection()
+    group = conn.execute("SELECT id FROM Groups WHERE id = ?", (group_id,)).fetchone()
+    if group is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    existing_member = conn.execute(
+        "SELECT id FROM Group_Member WHERE group_id = ? AND user_id = ?", (group_id, payload.user_id)
+    ).fetchone()
+    if existing_member:
+        conn.close()
+        raise HTTPException(status_code=409, detail="이미 그룹에 속한 교사입니다.")
+
+    conn.execute(
+        "INSERT INTO Group_Member (group_id, user_id, role) VALUES (?, ?, 'member')",
+        (group_id, payload.user_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/groups/{group_id}/members/{user_id}", status_code=204)
+def remove_group_member(group_id: int, user_id: int):
+    conn = get_connection()
+    conn.execute("DELETE FROM Group_Member WHERE group_id = ? AND user_id = ?", (group_id, user_id))
+    conn.commit()
+    conn.close()
+    return None
+
+
+# ---------- 공지 (담당: hbn2814) ----------
+NOTICE_SELECT = (
+    "SELECT id, title, content, deadline, target_group, is_pinned, created_at "
+    "FROM Announcement WHERE id = ?"
+)
+
+
+def _resolve_recipient_ids(conn, user_ids, group_ids):
+    ids = set(user_ids)
+    if group_ids:
+        placeholders = ",".join("?" * len(group_ids))
+        rows = conn.execute(
+            f"SELECT user_id FROM Group_Member WHERE group_id IN ({placeholders})",
+            list(group_ids),
+        ).fetchall()
+        ids |= {r["user_id"] for r in rows}
+    return ids
+
+
+@app.post("/notices", status_code=201)
+def create_notice(payload: NoticeCreate):
+    conn = get_connection()
+    author = conn.execute("SELECT id FROM User WHERE id = ?", (payload.author_id,)).fetchone()
+    if author is None:
+        conn.close()
+        raise HTTPException(status_code=400, detail="존재하지 않는 작성자입니다.")
+
+    cur = conn.execute(
+        "INSERT INTO Announcement (title, content, author_id, target_group, deadline) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (payload.title, payload.content, payload.author_id, payload.target_group, payload.deadline),
+    )
+    new_id = cur.lastrowid
+
+    recipient_ids = _resolve_recipient_ids(conn, payload.recipient_user_ids, payload.recipient_group_ids)
+    for user_id in recipient_ids:
+        conn.execute(
+            "INSERT OR IGNORE INTO Announcement_Recipient (announcement_id, user_id) VALUES (?, ?)",
+            (new_id, user_id),
+        )
+    conn.commit()
+
+    row = conn.execute(NOTICE_SELECT, (new_id,)).fetchone()
+    recipients = []
+    if recipient_ids:
+        placeholders = ",".join("?" * len(recipient_ids))
+        recipients = [
+            dict(r)
+            for r in conn.execute(
+                f"SELECT id, name FROM User WHERE id IN ({placeholders})",
+                sorted(recipient_ids),
+            ).fetchall()
+        ]
+    conn.close()
+    return {**dict(row), "recipients": recipients}
+
+
 @app.get("/notices")
 def get_notices():
     conn = get_connection()
@@ -254,6 +541,84 @@ def get_notices():
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# 로그인한 사용자 기준으로 "전체 공개" + "본인이 대상자인" 공지만 반환 (작성자라고 자동으로 보이지 않음).
+# 큐브 위젯의 알림/목록 탭에서 사용 (관리자 페이지의 GET /notices 전체 조회와는 별개).
+@app.get("/notices/mine")
+def get_my_notices(viewer_id: int):
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT a.id, a.title, a.content, a.deadline, a.target_group,
+               a.is_pinned, a.author_id, au.name AS author_name, a.created_at,
+               CASE WHEN c.id IS NULL THEN 0 ELSE 1 END AS completed,
+               c.completed_at
+        FROM Announcement a
+        JOIN User au ON au.id = a.author_id
+        LEFT JOIN Announcement_Recipient r ON r.announcement_id = a.id
+        LEFT JOIN Announcement_Completion c
+               ON c.announcement_id = a.id AND c.user_id = :viewer_id
+        WHERE a.is_deleted = 0
+          AND (
+                r.id IS NULL
+                OR a.id IN (
+                    SELECT announcement_id FROM Announcement_Recipient WHERE user_id = :viewer_id
+                )
+              )
+        ORDER BY a.is_pinned DESC, a.created_at DESC
+        """,
+        {"viewer_id": viewer_id},
+    ).fetchall()
+
+    ids = [r["id"] for r in rows]
+    recipients_by_notice = {}
+    if ids:
+        placeholders = ",".join("?" * len(ids))
+        rec_rows = conn.execute(
+            f"""
+            SELECT r.announcement_id, u.id AS user_id, u.name
+            FROM Announcement_Recipient r JOIN User u ON u.id = r.user_id
+            WHERE r.announcement_id IN ({placeholders})
+            """,
+            ids,
+        ).fetchall()
+        for r in rec_rows:
+            recipients_by_notice.setdefault(r["announcement_id"], []).append(
+                {"id": r["user_id"], "name": r["name"]}
+            )
+    conn.close()
+
+    return [
+        {**dict(r), "recipients": recipients_by_notice.get(r["id"], [])}
+        for r in rows
+    ]
+
+
+class CompleteNotice(BaseModel):
+    user_id: int
+
+
+# 로그인한 사용자 본인 기준으로 해당 공지 업무를 완료 처리 (담당: hbn2814)
+@app.post("/notices/{notice_id}/complete")
+def complete_notice(notice_id: int, payload: CompleteNotice):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Announcement WHERE id = ?", (notice_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="공지사항을 찾을 수 없습니다.")
+
+    conn.execute(
+        "INSERT OR IGNORE INTO Announcement_Completion (announcement_id, user_id) VALUES (?, ?)",
+        (notice_id, payload.user_id),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT completed_at FROM Announcement_Completion WHERE announcement_id = ? AND user_id = ?",
+        (notice_id, payload.user_id),
+    ).fetchone()
+    conn.close()
+    return {"announcement_id": notice_id, "user_id": payload.user_id, "completed": True, "completed_at": row["completed_at"]}
 
 
 # ---------- 관리자: 공지사항 관리 (담당: yamako8119-ai) ----------

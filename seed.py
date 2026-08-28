@@ -39,19 +39,19 @@ random.shuffle(all_name_combos)
 teacher_names = FIXED_TEACHER_NAMES + all_name_combos[: 30 - len(FIXED_TEACHER_NAMES)]
 
 users = []
-users.append(("정교장", "admin"))  # id 1
+users.append(("정교장", True))  # id 1
 for name in teacher_names:
-    users.append((name, "teacher"))
+    users.append((name, False))
 
 extensions = random.sample(range(1001, 1100), k=len(users))
 
 user_ids = {}
-for (name, role), ext in zip(users, extensions):
+for (name, is_admin), ext in zip(users, extensions):
     dept = random.choice(DEPARTMENTS)
-    subject = None if role == "admin" else random.choice(SUBJECTS)
+    subject = None if is_admin else random.choice(SUBJECTS)
     cur.execute(
-        "INSERT INTO User (name, password_hash, role, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?)",
-        (name, DEFAULT_PASSWORD_HASH, role, dept, subject, str(ext)),
+        "INSERT INTO User (name, password_hash, is_admin, department, subject, extension) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, DEFAULT_PASSWORD_HASH, int(is_admin), dept, subject, str(ext)),
     )
     user_ids[name] = cur.lastrowid
 
@@ -234,10 +234,13 @@ cur.execute(
 
 # ── AcademicSchedule: 학사일정 (학교 전체 기준 캘린더) ─────────
 academic_schedule = [
-    ("2학기 개학", "학기", "2026-08-18", None),
-    ("2학기 중간고사", "시험기간", "2026-09-08", "2026-09-10"),
-    ("재량휴업일", "재량휴업일", "2026-09-21", None),
+    ("2학기 개학식", "행사", "2026-08-18", None),
+    ("2학기 중간고사", "시험", "2026-09-08", "2026-09-10"),
+    ("재량휴업일", "공휴일", "2026-09-21", None),
     ("추석 연휴", "공휴일", "2026-09-24", "2026-09-27"),
+    ("체육대회", "행사", "2026-09-04", None),
+    ("동아리의 날", "동아리", "2026-09-25", None),
+    ("창체 활동 - 진로체험", "창체", "2026-09-15", None),
 ]
 
 for title, category, start_date, end_date in academic_schedule:
