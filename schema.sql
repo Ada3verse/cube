@@ -87,6 +87,23 @@ CREATE TABLE Group_Member (
     UNIQUE (group_id, user_id)
 );
 
+-- Announcement_Recipient: 공지 대상자 매핑 (다대다). 행이 없으면 전체 공개. (담당: hbn2814)
+CREATE TABLE Announcement_Recipient (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    announcement_id INTEGER NOT NULL REFERENCES Announcement(id),
+    user_id         INTEGER NOT NULL REFERENCES User(id),
+    UNIQUE (announcement_id, user_id)
+);
+
+-- Announcement_Completion: 사용자별 공지 업무 완료 체크 (담당: hbn2814)
+CREATE TABLE Announcement_Completion (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    announcement_id INTEGER NOT NULL REFERENCES Announcement(id),
+    user_id         INTEGER NOT NULL REFERENCES User(id),
+    completed_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (announcement_id, user_id)
+);
+
 -- Memo: 개인 캘린더 메모 (본인만 조회/작성, 공유되지 않음)
 CREATE TABLE Memo (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,3 +166,5 @@ CREATE INDEX idx_memo_user_date     ON Memo(user_id, date);
 CREATE INDEX idx_message_recipient_user ON Message_Recipient(user_id);
 CREATE INDEX idx_attachment_target  ON Attachment(target_type, target_id);
 CREATE INDEX idx_academic_schedule_date ON AcademicSchedule(start_date);
+CREATE INDEX idx_announcement_recipient_user ON Announcement_Recipient(user_id);
+CREATE INDEX idx_announcement_completion_user ON Announcement_Completion(user_id);

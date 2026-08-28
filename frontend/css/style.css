@@ -668,7 +668,7 @@ button {
   background: none;
   border: none;
   cursor: pointer;
-  color: #1a3d40;
+  color: inherit;
   font-size: 0.9rem;
   padding: 0;
   opacity: 0.6;
@@ -676,6 +676,150 @@ button {
   line-height: 1;
 }
 .cw-chip-del:hover { opacity: 1; }
+
+/* 그룹 대상 chip은 교사 chip과 다른 색으로 구분 */
+.cw-chip-group {
+  background: #d4b4f0;
+  color: #4a2f66;
+}
+
+/* ── 대상 교사 선택: @멘션 자동완성 ── */
+.cw-mention-field { position: relative; }
+
+.cw-mention-input-wrap { position: relative; }
+
+.cw-mention-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.14);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.cw-mention-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.83rem;
+}
+.cw-mention-opt:hover,
+.cw-mention-opt.cw-mention-hl {
+  background: var(--green-lighter);
+}
+
+.cw-mention-icon { flex-shrink: 0; font-size: 0.85rem; }
+.cw-mention-name { font-weight: 600; color: var(--text); }
+.cw-mention-sub  { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); }
+
+/* ── 교사 불러오기 / 그룹 만들기 버튼 ── */
+.cw-picker-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cw-picker-btn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+  padding: 7px 8px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.cw-picker-btn:hover { background: var(--green-lighter); }
+
+/* ── 공용 모달 ── */
+.cw-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38, 51, 44, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9500;
+}
+.cw-modal-overlay.cw-hidden { display: none; }
+
+.cw-modal {
+  width: 320px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+  animation: cw-pop-in 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  overflow: hidden;
+}
+
+.cw-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+  color: var(--mint-dark);
+}
+
+.cw-modal-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+}
+
+.cw-modal-body .cw-field { margin-bottom: 10px; }
+
+.cw-field-label {
+  display: block;
+  font-size: 0.77rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin: 4px 0 6px;
+}
+
+.cw-modal-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.cw-modal-foot .cw-submit-btn { margin-top: 0; }
+
+.cw-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.cw-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.cw-check-row:hover { background: var(--bg-soft); }
+.cw-check-row input { flex-shrink: 0; }
+.cw-check-sub { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); }
 
 .cw-submit-btn {
   width: 100%;
@@ -727,14 +871,20 @@ button {
 .cw-alert-item,
 .cw-list-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 11px 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--bg-soft);
   animation: cw-pop-in 0.22s ease-out;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
 }
+.cw-alert-item:hover,
+.cw-list-item:hover { filter: brightness(0.97); }
+.cw-alert-item:active,
+.cw-list-item:active { transform: scale(0.99); }
 
 /* 긴급도별 좌측 강조선 */
 .cw-alert-item.cw-urg-day  { border-left: 4px solid #e07a7a; background: #fff5f5; }
@@ -759,38 +909,12 @@ button {
 .cw-item-body   { flex: 1; min-width: 0; }
 
 .cw-item-title {
-  font-size: 0.87rem;
-  font-weight: 600;
+  font-size: 0.93rem;
+  font-weight: 700;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.cw-item-content {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 3px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.cw-item-mentions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 5px;
-}
-
-.cw-mchip {
-  font-size: 0.72rem;
-  background: rgba(168,218,220,0.45);
-  color: #1a3d40;
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-weight: 600;
 }
 
 .cw-empty-msg {
@@ -799,6 +923,80 @@ button {
   font-size: 0.85rem;
   padding: 28px 0;
 }
+
+/* 완료된 목록 항목 */
+.cw-list-item.cw-item-done {
+  opacity: 0.6;
+}
+.cw-list-item.cw-item-done .cw-item-title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cw-done-badge {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--mint-dark);
+  background: var(--green-lighter);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+/* ── 알림/목록 상세보기 ── */
+.cw-detail {
+  animation: cw-pop-in 0.2s ease-out;
+}
+
+.cw-detail-dday {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+.cw-detail-dday.cw-urg-day  { background: #e07a7a; color: white; }
+.cw-detail-dday.cw-urg-high { background: #f4a043; color: white; }
+.cw-detail-dday.cw-urg-mid  { background: #f4d143; color: #333; }
+.cw-detail-dday.cw-urg-low  { background: var(--mint); color: #1a3d40; }
+
+.cw-detail-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 8px;
+  line-height: 1.35;
+}
+
+.cw-detail-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.cw-detail-content {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  min-height: 60px;
+  margin-bottom: 16px;
+}
+
+.cw-detail-actions {
+  display: flex;
+  gap: 8px;
+}
+.cw-detail-actions .cw-picker-btn { flex: 1; }
+.cw-detail-actions .cw-submit-btn { flex: 1; margin-top: 0; }
+
+#cw-alert-ack-btn { width: 100%; }
 
 /* ========== Keyframes ========== */
 

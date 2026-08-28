@@ -31,20 +31,66 @@ function getCurrentUserId() {
   }
 }
 
-// 서버에서 공지 목록을 불러와 로컬 캐시(notices)를 채운다.
-// mentionedTeachers는 DB 컬럼이 아니라서 content에서 매번 다시 추출한다.
+// 로그인한 사용자에게 공개된(전체공개 + 본인이 대상자인) 공지만 불러온다.
 async function fetchNotices() {
-  const res = await fetch(`${API_BASE}/notices`);
+  const viewerId = getCurrentUserId();
+  if (!viewerId) {
+    notices = [];
+    return notices;
+  }
+
+  const res = await fetch(`${API_BASE}/notices/mine?viewer_id=${viewerId}`);
   if (!res.ok) throw new Error("공지 목록을 불러오지 못했습니다.");
   const rows = await res.json();
   notices = rows.map((r) => ({
     ...r,
-    mentionedTeachers: extractMentions(r.content),
+    mentionedTeachers: [
+      ...new Set([
+        ...(r.recipients || []).map((u) => u.name),
+        ...extractMentions(r.content),
+      ]),
+    ],
   }));
   return notices;
 }
 
-async function createNotice({ title, content, deadline, mentionedTeachers = [] }) {
+async function fetchTeachers() {
+  const res = await fetch(`${API_BASE}/teachers`);
+  if (!res.ok) throw new Error("교사 목록을 불러오지 못했습니다.");
+  return res.json();
+}
+
+async function fetchGroups() {
+  const res = await fetch(`${API_BASE}/groups`);
+  if (!res.ok) throw new Error("그룹 목록을 불러오지 못했습니다.");
+  return res.json();
+}
+
+async function createGroup({ name, description = null, memberIds = [] }) {
+  const res = await fetch(`${API_BASE}/groups`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      description,
+      created_by: getCurrentUserId(),
+      member_ids: memberIds,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "그룹 생성에 실패했습니다.");
+  }
+  return res.json();
+}
+
+async function createNotice({
+  title,
+  content,
+  deadline,
+  recipientUserIds = [],
+  recipientGroupIds = [],
+}) {
   const res = await fetch(`${API_BASE}/notices`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -53,6 +99,8 @@ async function createNotice({ title, content, deadline, mentionedTeachers = [] }
       content,
       deadline,
       author_id: getCurrentUserId(),
+      recipient_user_ids: recipientUserIds,
+      recipient_group_ids: recipientGroupIds,
     }),
   });
 
@@ -64,9 +112,12 @@ async function createNotice({ title, content, deadline, mentionedTeachers = [] }
   const created = await res.json();
   const notice = {
     ...created,
-    mentionedTeachers: mentionedTeachers.length
-      ? mentionedTeachers
-      : extractMentions(content),
+    mentionedTeachers: [
+      ...new Set([
+        ...(created.recipients || []).map((u) => u.name),
+        ...extractMentions(content),
+      ]),
+    ],
   };
   notices.unshift(notice);
   return notice;
@@ -74,6 +125,26 @@ async function createNotice({ title, content, deadline, mentionedTeachers = [] }
 
 function getNotices() {
   return [...notices].sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+}
+
+async function completeNotice(noticeId) {
+  const userId = getCurrentUserId();
+  const res = await fetch(`${API_BASE}/notices/${noticeId}/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "완료 처리에 실패했습니다.");
+  }
+  const result = await res.json();
+  const notice = notices.find((n) => n.id === noticeId);
+  if (notice) {
+    notice.completed = true;
+    notice.completed_at = result.completed_at;
+  }
+  return notice;
 }
 
 async function initNoticeForm() {
@@ -122,4 +193,15 @@ function renderNoticeList() {
 
 document.addEventListener("DOMContentLoaded", initNoticeForm);
 
-export { createNotice, getNotices, fetchNotices, calcDday, extractMentions };
+export {
+  createNotice,
+  getNotices,
+  fetchNotices,
+  fetchTeachers,
+  fetchGroups,
+  createGroup,
+  completeNotice,
+  calcDday,
+  extractMentions,
+  getCurrentUserId,
+};

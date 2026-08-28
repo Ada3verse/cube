@@ -3,7 +3,7 @@ import shutil
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 import psutil
 from fastapi import FastAPI, HTTPException
@@ -89,6 +89,15 @@ class NoticeCreate(BaseModel):
     deadline: Optional[str] = None
     author_id: int
     target_group: Optional[str] = None
+    recipient_user_ids: List[int] = []
+    recipient_group_ids: List[int] = []
+
+
+class GroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    created_by: int
+    member_ids: List[int] = []
 
 
 @app.get("/")
@@ -302,7 +311,85 @@ def create_academic_schedule(payload: ScheduleCreate):
     return dict(row)
 
 
+# ---------- 그룹 (담당: hbn2814) ----------
+@app.get("/groups")
+def get_groups():
+    conn = get_connection()
+    groups = conn.execute(
+        "SELECT id, name, description, created_by, is_official, created_at "
+        "FROM Groups ORDER BY is_official DESC, name"
+    ).fetchall()
+    members = conn.execute(
+        "SELECT gm.group_id, u.id, u.name "
+        "FROM Group_Member gm JOIN User u ON u.id = gm.user_id "
+        "WHERE u.is_deleted = 0"
+    ).fetchall()
+    conn.close()
+
+    members_by_group = {}
+    for m in members:
+        members_by_group.setdefault(m["group_id"], []).append({"id": m["id"], "name": m["name"]})
+
+    return [
+        {**dict(g), "members": members_by_group.get(g["id"], [])}
+        for g in groups
+    ]
+
+
+@app.post("/groups", status_code=201)
+def create_group(payload: GroupCreate):
+    conn = get_connection()
+    creator = conn.execute("SELECT id FROM User WHERE id = ?", (payload.created_by,)).fetchone()
+    if creator is None:
+        conn.close()
+        raise HTTPException(status_code=400, detail="존재하지 않는 생성자입니다.")
+
+    cur = conn.execute(
+        "INSERT INTO Groups (name, description, created_by, is_official) VALUES (?, ?, ?, 0)",
+        (payload.name, payload.description, payload.created_by),
+    )
+    new_id = cur.lastrowid
+
+    member_ids = set(payload.member_ids) | {payload.created_by}
+    for user_id in member_ids:
+        role = "owner" if user_id == payload.created_by else "member"
+        conn.execute(
+            "INSERT OR IGNORE INTO Group_Member (group_id, user_id, role) VALUES (?, ?, ?)",
+            (new_id, user_id, role),
+        )
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT id, name, description, created_by, is_official, created_at FROM Groups WHERE id = ?",
+        (new_id,),
+    ).fetchone()
+    member_rows = conn.execute(
+        "SELECT u.id, u.name FROM Group_Member gm JOIN User u ON u.id = gm.user_id WHERE gm.group_id = ?",
+        (new_id,),
+    ).fetchall()
+    conn.close()
+    return {**dict(row), "members": [dict(m) for m in member_rows]}
+
+
 # ---------- 공지 (담당: hbn2814) ----------
+NOTICE_SELECT = (
+    "SELECT id, title, content, deadline, target_group, is_pinned, created_at "
+    "FROM Announcement WHERE id = ?"
+)
+
+
+def _resolve_recipient_ids(conn, user_ids, group_ids):
+    ids = set(user_ids)
+    if group_ids:
+        placeholders = ",".join("?" * len(group_ids))
+        rows = conn.execute(
+            f"SELECT user_id FROM Group_Member WHERE group_id IN ({placeholders})",
+            list(group_ids),
+        ).fetchall()
+        ids |= {r["user_id"] for r in rows}
+    return ids
+
+
 @app.post("/notices", status_code=201)
 def create_notice(payload: NoticeCreate):
     conn = get_connection()
@@ -316,15 +403,29 @@ def create_notice(payload: NoticeCreate):
         "VALUES (?, ?, ?, ?, ?)",
         (payload.title, payload.content, payload.author_id, payload.target_group, payload.deadline),
     )
-    conn.commit()
     new_id = cur.lastrowid
-    row = conn.execute(
-        "SELECT id, title, content, deadline, target_group, is_pinned, created_at "
-        "FROM Announcement WHERE id = ?",
-        (new_id,),
-    ).fetchone()
+
+    recipient_ids = _resolve_recipient_ids(conn, payload.recipient_user_ids, payload.recipient_group_ids)
+    for user_id in recipient_ids:
+        conn.execute(
+            "INSERT OR IGNORE INTO Announcement_Recipient (announcement_id, user_id) VALUES (?, ?)",
+            (new_id, user_id),
+        )
+    conn.commit()
+
+    row = conn.execute(NOTICE_SELECT, (new_id,)).fetchone()
+    recipients = []
+    if recipient_ids:
+        placeholders = ",".join("?" * len(recipient_ids))
+        recipients = [
+            dict(r)
+            for r in conn.execute(
+                f"SELECT id, name FROM User WHERE id IN ({placeholders})",
+                sorted(recipient_ids),
+            ).fetchall()
+        ]
     conn.close()
-    return dict(row)
+    return {**dict(row), "recipients": recipients}
 
 
 @app.get("/notices")
@@ -336,6 +437,84 @@ def get_notices():
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# 로그인한 사용자 기준으로 "전체 공개" + "본인이 대상자인" 공지만 반환 (작성자라고 자동으로 보이지 않음).
+# 큐브 위젯의 알림/목록 탭에서 사용 (관리자 페이지의 GET /notices 전체 조회와는 별개).
+@app.get("/notices/mine")
+def get_my_notices(viewer_id: int):
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT a.id, a.title, a.content, a.deadline, a.target_group,
+               a.is_pinned, a.author_id, au.name AS author_name, a.created_at,
+               CASE WHEN c.id IS NULL THEN 0 ELSE 1 END AS completed,
+               c.completed_at
+        FROM Announcement a
+        JOIN User au ON au.id = a.author_id
+        LEFT JOIN Announcement_Recipient r ON r.announcement_id = a.id
+        LEFT JOIN Announcement_Completion c
+               ON c.announcement_id = a.id AND c.user_id = :viewer_id
+        WHERE a.is_deleted = 0
+          AND (
+                r.id IS NULL
+                OR a.id IN (
+                    SELECT announcement_id FROM Announcement_Recipient WHERE user_id = :viewer_id
+                )
+              )
+        ORDER BY a.is_pinned DESC, a.created_at DESC
+        """,
+        {"viewer_id": viewer_id},
+    ).fetchall()
+
+    ids = [r["id"] for r in rows]
+    recipients_by_notice = {}
+    if ids:
+        placeholders = ",".join("?" * len(ids))
+        rec_rows = conn.execute(
+            f"""
+            SELECT r.announcement_id, u.id AS user_id, u.name
+            FROM Announcement_Recipient r JOIN User u ON u.id = r.user_id
+            WHERE r.announcement_id IN ({placeholders})
+            """,
+            ids,
+        ).fetchall()
+        for r in rec_rows:
+            recipients_by_notice.setdefault(r["announcement_id"], []).append(
+                {"id": r["user_id"], "name": r["name"]}
+            )
+    conn.close()
+
+    return [
+        {**dict(r), "recipients": recipients_by_notice.get(r["id"], [])}
+        for r in rows
+    ]
+
+
+class CompleteNotice(BaseModel):
+    user_id: int
+
+
+# 로그인한 사용자 본인 기준으로 해당 공지 업무를 완료 처리 (담당: hbn2814)
+@app.post("/notices/{notice_id}/complete")
+def complete_notice(notice_id: int, payload: CompleteNotice):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Announcement WHERE id = ?", (notice_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="공지사항을 찾을 수 없습니다.")
+
+    conn.execute(
+        "INSERT OR IGNORE INTO Announcement_Completion (announcement_id, user_id) VALUES (?, ?)",
+        (notice_id, payload.user_id),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT completed_at FROM Announcement_Completion WHERE announcement_id = ? AND user_id = ?",
+        (notice_id, payload.user_id),
+    ).fetchone()
+    conn.close()
+    return {"announcement_id": notice_id, "user_id": payload.user_id, "completed": True, "completed_at": row["completed_at"]}
 
 
 # ---------- 관리자: 공지사항 관리 (담당: yamako8119-ai) ----------
