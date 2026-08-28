@@ -23,6 +23,7 @@ function showApp(user) {
   document.getElementById("login-screen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
   document.getElementById("current-user-name").textContent = `${user.name}님`;
+  if (typeof showGreetingPopup === "function") showGreetingPopup(user);
   if (typeof runSmartAlarm === "function") runSmartAlarm(user);
 }
 

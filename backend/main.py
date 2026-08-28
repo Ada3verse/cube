@@ -80,6 +80,13 @@ class PinUpdate(BaseModel):
     is_pinned: bool
 
 
+class PersonalEventCreate(BaseModel):
+    teacher_name: str
+    title: str
+    date: str
+    memo: Optional[str] = None
+
+
 @app.get("/")
 def read_root():
     return {"message": "CUBE API 서버가 실행 중입니다."}
@@ -281,6 +288,50 @@ def delete_notice(notice_id: int):
         raise HTTPException(status_code=404, detail="공지사항을 찾을 수 없습니다.")
 
     conn.execute("UPDATE Announcement SET is_deleted = 1 WHERE id = ?", (notice_id,))
+    conn.commit()
+    conn.close()
+    return None
+
+
+# ---------- 개인 일정 (담당: ada3verse) ----------
+@app.get("/personal-events")
+def get_personal_events(teacher_name: str):
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, teacher_name, title, date, memo, created_at "
+        "FROM PersonalEvent WHERE teacher_name = ? ORDER BY date",
+        (teacher_name,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.post("/personal-events", status_code=201)
+def create_personal_event(payload: PersonalEventCreate):
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO PersonalEvent (teacher_name, title, date, memo) VALUES (?, ?, ?, ?)",
+        (payload.teacher_name, payload.title, payload.date, payload.memo),
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    row = conn.execute(
+        "SELECT id, teacher_name, title, date, memo, created_at FROM PersonalEvent WHERE id = ?",
+        (new_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row)
+
+
+@app.delete("/personal-events/{event_id}", status_code=204)
+def delete_personal_event(event_id: int):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM PersonalEvent WHERE id = ?", (event_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="개인 일정을 찾을 수 없습니다.")
+
+    conn.execute("DELETE FROM PersonalEvent WHERE id = ?", (event_id,))
     conn.commit()
     conn.close()
     return None

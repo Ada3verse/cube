@@ -96,6 +96,16 @@ CREATE TABLE Memo (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- PersonalEvent: 교사 개인 캘린더 일정 (teacher_name 기준, 본인만 조회, 공유되지 않음)
+CREATE TABLE PersonalEvent (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    teacher_name TEXT NOT NULL,                   -- User.name(로그인 아이디) 기준
+    title        TEXT NOT NULL,
+    date         TEXT NOT NULL,                   -- YYYY-MM-DD
+    memo         TEXT,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- AcademicSchedule: 학사일정 (학교 전체 기준 캘린더, 방학/시험기간/공휴일 등)
 CREATE TABLE AcademicSchedule (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -145,6 +155,7 @@ CREATE INDEX idx_completion_user    ON Completion(user_id);
 CREATE INDEX idx_announcement_date  ON Announcement(created_at);
 CREATE INDEX idx_group_member_user  ON Group_Member(user_id);
 CREATE INDEX idx_memo_user_date     ON Memo(user_id, date);
+CREATE INDEX idx_personal_event_teacher_date ON PersonalEvent(teacher_name, date);
 CREATE INDEX idx_message_recipient_user ON Message_Recipient(user_id);
 CREATE INDEX idx_attachment_target  ON Attachment(target_type, target_id);
 CREATE INDEX idx_academic_schedule_date ON AcademicSchedule(start_date);

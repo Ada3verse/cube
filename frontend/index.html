@@ -105,6 +105,15 @@
 
     <div id="today-popup" class="today-popup hidden"></div>
 
+    <!-- 로그인 직후 환영 팝업 (오늘 첫 로그인 시 1회만) -->
+    <div id="greeting-modal" class="alarm-dday-overlay hidden">
+      <div class="greeting-card">
+        <p id="greeting-title" class="greeting-title"></p>
+        <p id="greeting-quote" class="greeting-quote"></p>
+        <button id="greeting-confirm" class="btn btn-primary">확인</button>
+      </div>
+    </div>
+
     <!-- 스마트 알람: 1주 전(소프트) / 3일 전(경고) 코너 팝업 -->
     <div id="alarm-soft-popup" class="alarm-corner-popup hidden"></div>
     <div id="alarm-warn-popup" class="alarm-corner-popup alarm-warn hidden"></div>
@@ -133,6 +142,7 @@
   <script type="module" src="js/notice.js"></script>
   <script type="module" src="js/notification.js"></script>
   <script src="js/alarm.js"></script>
+  <script src="js/messages.js"></script>
   <script src="js/auth.js"></script>
   <script>
     const tabButtons = document.querySelectorAll(".tab-btn");

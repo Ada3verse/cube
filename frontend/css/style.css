@@ -296,29 +296,27 @@ button {
   font-size: 0.85rem;
 }
 
-.day-dot {
+/* 공유 일정(초록) / 개인 일정(파랑) - 색상으로만 구분 */
+.day-dot-row {
   position: absolute;
   bottom: 8px;
   right: 10px;
+  display: flex;
+  gap: 3px;
+}
+
+.day-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
-.day-dot-today {
-  background: var(--danger);
-}
-
-.day-dot-soon {
-  background: var(--orange);
-}
-
-.day-dot-safe {
+.day-dot-shared {
   background: #52b788;
 }
 
-.day-dot-past {
-  background: var(--gray);
+.day-dot-personal {
+  background: #4a90d9;
 }
 
 /* ---------- Notice form ---------- */
@@ -598,6 +596,137 @@ button {
   margin-bottom: 0;
 }
 
+/* ---------- 모달: 공유/개인 일정 섹션 ---------- */
+.modal-section {
+  margin-top: 20px;
+}
+
+.modal-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.modal-section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.modal-section-dot.shared {
+  background: #52b788;
+}
+
+.modal-section-dot.personal {
+  background: #4a90d9;
+}
+
+.personal-event-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  margin-bottom: 8px;
+}
+
+.personal-event-item:last-child {
+  margin-bottom: 0;
+}
+
+.personal-event-text {
+  flex: 1;
+}
+
+.personal-event-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.personal-event-memo {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.personal-event-delete {
+  border: none;
+  background: var(--gray-light);
+  color: var(--gray);
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.personal-event-delete:hover {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.modal-empty-small {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 4px 0 8px;
+}
+
+.personal-event-add-btn {
+  border: 1px dashed var(--border);
+  background: var(--bg-soft);
+  color: var(--mint-dark);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.personal-event-add-btn:hover {
+  background: var(--green-lighter);
+}
+
+.personal-event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-soft);
+}
+
+.personal-event-form input,
+.personal-event-form textarea {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  background: var(--white);
+  resize: vertical;
+}
+
+.personal-event-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.personal-event-form-actions .btn {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+}
+
 /* D-day 뱃지: D-DAY 빨강 / 임박(D-3 이내) 주황 / 여유(D-7 이상 포함) 초록 / 지난 마감 회색 */
 .dday-badge {
   font-weight: 700;
@@ -746,5 +875,34 @@ button {
 
 .alarm-dday-card .btn {
   margin-top: 6px;
+  width: 100%;
+}
+
+/* ---------- 로그인 환영 팝업 (알람 모달과 동일한 어두운 배경(.alarm-dday-overlay) 재사용) ---------- */
+.greeting-card {
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  background: var(--white);
+  border-radius: 20px;
+  padding: 32px 28px;
+  text-align: center;
+  box-shadow: 0 24px 56px rgba(111, 179, 184, 0.3);
+}
+
+.greeting-title {
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.greeting-quote {
+  font-style: italic;
+  color: var(--mint-dark);
+  font-size: 0.95rem;
+  margin: 0 0 22px;
+}
+
+.greeting-card .btn {
   width: 100%;
 }
