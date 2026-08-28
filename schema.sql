@@ -96,6 +96,37 @@ CREATE TABLE Memo (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Message: 쪽지 본문 (보낸 사람 기준 1건, 여러 명에게 동시 발송 가능)
+CREATE TABLE Message (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id            INTEGER NOT NULL REFERENCES User(id),
+    content              TEXT NOT NULL,
+    sent_at              TEXT NOT NULL DEFAULT (datetime('now')),
+    is_deleted_by_sender INTEGER NOT NULL DEFAULT 0   -- 보낸사람이 보낸쪽지함에서 삭제
+);
+
+-- Message_Recipient: 쪽지 수신자 매핑 (다대다, 읽음/삭제는 수신자별로 독립)
+CREATE TABLE Message_Recipient (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id  INTEGER NOT NULL REFERENCES Message(id),
+    user_id     INTEGER NOT NULL REFERENCES User(id),
+    read_at     TEXT,                              -- NULL = 안 읽음
+    is_deleted  INTEGER NOT NULL DEFAULT 0,         -- 받은사람이 받은쪽지함에서만 삭제
+    UNIQUE (message_id, user_id)
+);
+
+-- Attachment: 첨부파일 (쪽지/공지사항/일정 등에서 공용으로 사용)
+CREATE TABLE Attachment (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_name   TEXT NOT NULL,
+    file_path   TEXT NOT NULL,                      -- 서버 디스크에 저장된 실제 경로
+    file_size   INTEGER,                             -- bytes
+    uploaded_by INTEGER NOT NULL REFERENCES User(id),
+    target_type TEXT NOT NULL CHECK (target_type IN ('message', 'announcement', 'event')),
+    target_id   INTEGER NOT NULL,
+    uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 자주 조회하는 컬럼 인덱스
 CREATE INDEX idx_event_start        ON Event(start_at);
 CREATE INDEX idx_notification_user  ON Notification(user_id);
@@ -103,3 +134,5 @@ CREATE INDEX idx_completion_user    ON Completion(user_id);
 CREATE INDEX idx_announcement_date  ON Announcement(created_at);
 CREATE INDEX idx_group_member_user  ON Group_Member(user_id);
 CREATE INDEX idx_memo_user_date     ON Memo(user_id, date);
+CREATE INDEX idx_message_recipient_user ON Message_Recipient(user_id);
+CREATE INDEX idx_attachment_target  ON Attachment(target_type, target_id);

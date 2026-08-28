@@ -27,7 +27,7 @@ conn = sqlite3.connect("database.db")
 cur = conn.cursor()
 
 # 기존 데이터 초기화 (재실행 대비)
-for table in ["Memo", "Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
+for table in ["Attachment", "Message_Recipient", "Message", "Memo", "Group_Member", "Groups", "Completion", "Notification", "Announcement", "Event", "User"]:
     cur.execute(f"DELETE FROM {table}")
     cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
 
@@ -192,6 +192,40 @@ for uid, (date, content) in zip(memo_authors, memo_samples):
         (uid, date, content),
     )
 
+# ── Message: 쪽지 (1명 또는 여러 명에게 발송) ─────────────────
+message_samples = [
+    ("체육대회 관련해서 잠깐 얘기 가능하실까요?", 1),      # 1명에게
+    ("이번 주 교과협의회 자료 공유드립니다.", 3),          # 3명에게
+    ("생활기록부 점검 관련 안내드립니다.", 5),             # 5명에게
+]
+
+for content, recipient_count in message_samples:
+    sender = random.choice(teacher_ids)
+    cur.execute(
+        "INSERT INTO Message (sender_id, content) VALUES (?, ?)",
+        (sender, content),
+    )
+    message_id = cur.lastrowid
+
+    candidates = [uid for uid in teacher_ids if uid != sender]
+    recipients = random.sample(candidates, k=recipient_count)
+    for uid in recipients:
+        read = random.random() < 0.5
+        read_at = "2026-08-20T09:00:00" if read else None
+        cur.execute(
+            "INSERT INTO Message_Recipient (message_id, user_id, read_at) VALUES (?, ?, ?)",
+            (message_id, uid, read_at),
+        )
+
+# ── Attachment: 공지사항 1건에 샘플 첨부파일 ───────────────────
+cur.execute("SELECT id FROM Announcement ORDER BY id LIMIT 1")
+first_announcement_id = cur.fetchone()[0]
+cur.execute(
+    """INSERT INTO Attachment (file_name, file_path, file_size, uploaded_by, target_type, target_id)
+       VALUES (?, ?, ?, ?, ?, ?)""",
+    ("교과서_반납_안내.pdf", "uploads/announcement/1/교과서_반납_안내.pdf", 245000, admin_id, "announcement", first_announcement_id),
+)
+
 conn.commit()
 
 cur.execute("SELECT COUNT(*) FROM User")
@@ -210,5 +244,11 @@ cur.execute("SELECT COUNT(*) FROM Group_Member")
 print("Group_Member:", cur.fetchone()[0])
 cur.execute("SELECT COUNT(*) FROM Memo")
 print("Memo:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Message")
+print("Message:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Message_Recipient")
+print("Message_Recipient:", cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM Attachment")
+print("Attachment:", cur.fetchone()[0])
 
 conn.close()
