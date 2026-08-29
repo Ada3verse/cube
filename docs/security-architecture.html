@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CUBE 보안 아키텍처</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #f6f8f5;
+    --surface: #ffffff;
+    --surface-2: #eef2ee;
+    --ink: #1b241e;
+    --ink-dim: #56655b;
+    --line: #dbe3dc;
+    --accent: #2f6f63;
+    --accent-strong: #1f5a4f;
+    --accent-soft: #dcece6;
+    --done: #2f7a4f;
+    --done-bg: #e3f3e8;
+    --demo: #8a6100;
+    --demo-bg: #fdf1cf;
+    --roadmap: #5b6472;
+    --roadmap-bg: #eaedf1;
+    --risk: #a23b3b;
+    --risk-bg: #fbe9e9;
+    --risk-line: #eecccc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #10160f;
+      --surface: #171f19;
+      --surface-2: #1e2721;
+      --ink: #e7ede7;
+      --ink-dim: #9dab9f;
+      --line: #2b362e;
+      --accent: #6cbaa9;
+      --accent-strong: #8ecdbf;
+      --accent-soft: #223b34;
+      --done: #7fcf9e;
+      --done-bg: #1c3626;
+      --demo: #e0bd6a;
+      --demo-bg: #3a3018;
+      --roadmap: #a7b0bc;
+      --roadmap-bg: #262c33;
+      --risk: #e08787;
+      --risk-bg: #3a2323;
+      --risk-line: #4a2c2c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #10160f;
+    --surface: #171f19;
+    --surface-2: #1e2721;
+    --ink: #e7ede7;
+    --ink-dim: #9dab9f;
+    --line: #2b362e;
+    --accent: #6cbaa9;
+    --accent-strong: #8ecdbf;
+    --accent-soft: #223b34;
+    --done: #7fcf9e;
+    --done-bg: #1c3626;
+    --demo: #e0bd6a;
+    --demo-bg: #3a3018;
+    --roadmap: #a7b0bc;
+    --roadmap-bg: #262c33;
+    --risk: #e08787;
+    --risk-bg: #3a2323;
+    --risk-line: #4a2c2c;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
+    line-height: 1.65;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-family: "Gowun Batang", serif;
+    font-weight: 700;
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    margin: 0 0 14px;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .lede {
+    font-size: 1rem;
+    color: var(--ink-dim);
+    max-width: 62ch;
+    margin: 0 0 32px;
+  }
+
+  .status-strip {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 56px;
+  }
+
+  .status-chip {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+  }
+  .status-chip b {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 1.15rem;
+    color: var(--ink);
+  }
+  .status-chip.done b { color: var(--done); }
+  .status-chip.demo b { color: var(--demo); }
+  .status-chip.roadmap b { color: var(--roadmap); }
+
+  section {
+    margin-bottom: 60px;
+  }
+
+  section .eyebrow-2 {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 8px;
+  }
+
+  h2 {
+    font-family: "Gowun Batang", serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+
+  .section-lede {
+    color: var(--ink-dim);
+    max-width: 68ch;
+    margin: 0 0 22px;
+    font-size: 0.95rem;
+  }
+
+  .diagram-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px 22px 8px;
+    overflow-x: auto;
+  }
+
+  .diagram-card figcaption {
+    font-size: 0.82rem;
+    color: var(--ink-dim);
+    border-top: 1px solid var(--line);
+    margin-top: 14px;
+    padding: 12px 2px 4px;
+  }
+
+  .diagram-card .mermaid {
+    display: flex;
+    justify-content: center;
+  }
+  .diagram-card .mermaid svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .callout {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: var(--risk-bg);
+    border: 1px solid var(--risk-line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 0.88rem;
+    color: var(--ink);
+    margin-top: 16px;
+  }
+  .callout .dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--risk);
+    margin-top: 7px;
+  }
+  .callout b { color: var(--risk); }
+
+  .code-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 620px) {
+    .code-compare { grid-template-columns: 1fr; }
+  }
+  .code-card {
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .code-card .label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .code-card.bad .label { color: var(--risk); background: var(--risk-bg); }
+  .code-card.good .label { color: var(--done); background: var(--done-bg); }
+  .code-card pre {
+    margin: 0;
+    padding: 14px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--ink);
+    background: var(--surface-2);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+    background: var(--surface);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .table-wrap {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow-x: auto;
+  }
+  th, td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    background: var(--surface-2);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.item { font-weight: 600; }
+  td.note { color: var(--ink-dim); }
+
+  .pill {
+    display: inline-block;
+    padding: 3px 11px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill.done { background: var(--done-bg); color: var(--done); }
+  .pill.demo { background: var(--demo-bg); color: var(--demo); }
+  .pill.roadmap { background: var(--roadmap-bg); color: var(--roadmap); }
+
+  footer {
+    margin-top: 72px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 0.8rem;
+    color: var(--ink-dim);
+  }
+
+  code.inline {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 0.85em;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <p class="eyebrow">CUBE · 교무행정 통합 플랫폼</p>
+  <h1>지금까지 한 보안 작업</h1>
+  <p class="lede">2026년 8월 29일 발표 기준. 실제로 만들어서 확인까지 끝낸 것과, 아직 손대지 않고 계획만 세워둔 것을 나눠서 정리했다.</p>
+
+  <div class="status-strip">
+    <div class="status-chip done"><b>10</b> 구현 완료</div>
+    <div class="status-chip demo"><b>2</b> 데모(방향성만 시연)</div>
+    <div class="status-chip roadmap"><b>6</b> 로드맵</div>
+  </div>
+
+  <section>
+    <p class="eyebrow-2">신뢰 경계</p>
+    <h2>누가 무엇에 닿을 수 있는가</h2>
+    <p class="section-lede">
+      CUBE는 인터넷이 아니라 학교 내부망에서만 쓰는 폐쇄형 프로그램이다. 학교 방화벽이 외부 접근을 차단하고,
+      그 안에서만 교사 PC와 서버 PC가 통신한다.
+    </p>
+    <figure class="diagram-card">
+      <pre class="mermaid">
+flowchart TB
+  subgraph FIREWALL["학교 방화벽 내부망"]
+    direction LR
+    CLIENT["교사 PC<br/>(웹 브라우저)"]
+    SERVER["서버 PC"]
+    CLIENT -. "HTTPS(TLS) + TOFU 인증서 검증<br/>적용 예정" .-> SERVER
+  end
+      </pre>
+      <figcaption>방화벽 밖에서는 접근할 수 없다. 현재는 평문 HTTP로 통신 중이며, HTTPS(TLS)와 TOFU 방식의 인증서 검증을 적용해 암호화할 계획이다.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow-2">인증</p>
+    <h2>로그인 시 발급되는 세션 토큰</h2>
+    <p class="section-lede">
+      예전에는 클라이언트가 스스로 밝힌 사용자 ID를 서버가 그대로 신뢰했다. 브라우저에서 값만 조작하면
+      비밀번호 없이도 다른 계정으로 위장할 수 있었다는 뜻이다. 지금은 로그인에 성공했을 때 서버가 발급한
+      세션 토큰만 신원의 증거로 인정한다.
+    </p>
+    <figure class="diagram-card">
+      <pre class="mermaid">
+sequenceDiagram
+  participant B as 교사 PC
+  participant S as 서버
+
+  B->>S: 아이디·비밀번호 전송
+  S->>S: 비밀번호 검증
+  S->>S: 세션 토큰 발급
+  S-->>B: 세션 토큰 전달
+
+  rect rgba(120,120,120,0.08)
+  Note over B,S: 이후 모든 요청
+  B->>S: Authorization 헤더로 토큰 전달
+  S->>S: 토큰 유효성 확인
+  S-->>B: 인증 완료, 요청 처리
+  end
+      </pre>
+      <figcaption>세션 토큰은 서버 메모리에만 저장된다. 로그아웃하거나 서버가 재시작되면 즉시 무효화된다.</figcaption>
+    </figure>
+    <div class="callout">
+      <span class="dot"></span>
+      <div><b>알려진 한계.</b> 세션이 메모리에만 저장돼 있어 서버 재시작 시 전원 재로그인이 필요하다. 추후 세션 영속화로 해결할 예정.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow-2">접근 제어</p>
+    <h2>관리자 화면은 조건 두 가지를 동시에 만족해야 열린다</h2>
+    <p class="section-lede">
+      세션 토큰이 관리자 권한을 가졌더라도, 요청이 서버 PC 밖에서 왔다면 차단한다. 실제로 교사 PC에서
+      관리자 세션 토큰으로 접속을 시도했더니 차단됐고, 서버 PC 앞에서 시도하니 정상 처리됐다.
+    </p>
+    <figure class="diagram-card">
+      <pre class="mermaid">
+flowchart TD
+  REQ["관리자 API 요청"] --> TOKEN{"유효한 세션 토큰?"}
+  TOKEN -- 없음 --> R401["401 인증 필요"]
+  TOKEN -- 있음 --> HOST{"서버 PC 자기 자신에서<br/>온 요청인가?"}
+  HOST -- 아니오 --> R403A["403 차단<br/>(서버 PC 전용)"]
+  HOST -- 예 --> ADMIN{"관리자 권한인가?"}
+  ADMIN -- 아니오 --> R403B["403 차단<br/>(관리자 전용)"]
+  ADMIN -- 예 --> OK["200 허용"]
+
+  style R401 fill:transparent
+  style R403A fill:transparent
+  style R403B fill:transparent
+  style OK fill:transparent
+      </pre>
+      <figcaption><code class="inline">require_admin</code> 의존성 하나로 교사 등록, 권한 변경, 학사일정, 그룹 관리 등 관리자 전용 엔드포인트 전체가 동일하게 보호된다.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow-2">XSS 방어</p>
+    <h2>공지 제목에 스크립트를 삽입할 수 있었던 취약점</h2>
+    <p class="section-lede">
+      공지 제목을 이스케이프 없이 화면에 그대로 렌더링하는 곳이 있었다. 제목에 스크립트를 삽입하면, 그 공지를
+      받은 모든 교사의 화면에서 그대로 실행됐다(저장형 XSS). 지금은 DOM에 삽입하기 전 특수문자를 전부
+      이스케이프 처리한다.
+    </p>
+    <div class="code-compare">
+      <div class="code-card bad">
+        <div class="label">Before · cube-widget.js</div>
+        <pre>&lt;div class="cw-item-title"&gt;
+  ${n.title}
+&lt;/div&gt;</pre>
+      </div>
+      <div class="code-card good">
+        <div class="label">After</div>
+        <pre>&lt;div class="cw-item-title"&gt;
+  ${escapeHtml(n.title)}
+&lt;/div&gt;</pre>
+      </div>
+    </div>
+    <div class="callout">
+      <span class="dot"></span>
+      <div>동일한 패턴이 교사명, 그룹명, @멘션 자동완성 등 총 다섯 곳에 더 있어 전부 이스케이프 처리했다.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow-2">전체 목록</p>
+    <h2>구현 완료 · 데모 · 로드맵</h2>
+    <p class="section-lede">발표 중 "이거 실제로 되나요?"라는 질문에 바로 답할 수 있도록 전부 한 표에 모았다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>상태</th><th>설명</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="item">비밀번호 해싱(bcrypt)</td><td><span class="pill done">완료</span></td><td class="note">평문 비밀번호는 DB 어디에도 저장하지 않는다</td></tr>
+          <tr><td class="item">로그인 rate limit</td><td><span class="pill done">완료</span></td><td class="note">동일 IP 60초 내 10회 초과 시 429 응답</td></tr>
+          <tr><td class="item">세션 토큰 기반 인증</td><td><span class="pill done">완료</span></td><td class="note">클라이언트가 주장하는 사용자 ID를 믿지 않고, 서버 발급 토큰으로만 신원을 확인한다</td></tr>
+          <tr><td class="item">로그아웃 시 토큰 무효화</td><td><span class="pill done">완료</span></td><td class="note">서버 메모리 세션에서 즉시 제거된다</td></tr>
+          <tr><td class="item">관리자 API 서버 전용 접근</td><td><span class="pill done">완료</span></td><td class="note">서버 PC 외부 요청은 403, 실측으로 확인함</td></tr>
+          <tr><td class="item">관리자 화면 접근 제어</td><td><span class="pill done">완료</span></td><td class="note">비관리자 계정은 진입 즉시 메인 화면으로 리다이렉트</td></tr>
+          <tr><td class="item">개인 일정 접근 권한 검증</td><td><span class="pill done">완료</span></td><td class="note">본인 소유가 아니면 조회·삭제 불가, 관리자도 예외 없음</td></tr>
+          <tr><td class="item">비밀번호 변경 기능</td><td><span class="pill done">완료</span></td><td class="note">현재 비밀번호 검증 후에만 변경 가능</td></tr>
+          <tr><td class="item">XSS 방어(출력 이스케이프)</td><td><span class="pill done">완료</span></td><td class="note">공지 제목, 교사명, 그룹명 등 총 5곳 적용</td></tr>
+          <tr><td class="item">글자 크기 · 테마 색상 설정</td><td><span class="pill done">완료</span></td><td class="note">실사용 가능, 브라우저에 저장됨</td></tr>
+          <tr><td class="item">로그 · 접속기록 · 데이터추출 화면</td><td><span class="pill demo">데모</span></td><td class="note">화면만 존재, 실제 수집·저장 로직은 아직 없음</td></tr>
+          <tr><td class="item">무차별 대입 탐지 시나리오</td><td><span class="pill demo">데모</span></td><td class="note">실제 rate limit 임계값(10회/60초)에 맞춘 예시 데이터</td></tr>
+          <tr><td class="item">HTTPS(TLS) + TOFU 인증서 검증</td><td><span class="pill roadmap">로드맵</span></td><td class="note">현재 평문 HTTP, 교내망 도청에 취약</td></tr>
+          <tr><td class="item">파일 첨부 + 업로드 보안</td><td><span class="pill roadmap">로드맵</span></td><td class="note">첨부 기능 자체가 아직 없음</td></tr>
+          <tr><td class="item">세션 영속화 · 만료 정책</td><td><span class="pill roadmap">로드맵</span></td><td class="note">현재는 메모리 저장, 서버 재시작 시 전원 로그아웃</td></tr>
+          <tr><td class="item">실제 로그 수집 · 보관</td><td><span class="pill roadmap">로드맵</span></td><td class="note">데모 화면의 가짜 데이터를 실제 로직으로 교체할 예정</td></tr>
+          <tr><td class="item">데이터 백업/내보내기 + 재인증</td><td><span class="pill roadmap">로드맵</span></td><td class="note">서버 자기 자신 요청 + 그 순간 재인증 이중 확인 예정</td></tr>
+          <tr><td class="item">공지/그룹 작성자 스푸핑 방지</td><td><span class="pill roadmap">로드맵</span></td><td class="note">created_by/author_id를 클라이언트 값이 아닌 토큰 기준으로 강제할 예정</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    CUBE 보안 작업 스냅샷 · 2026-08-29 발표 기준 · 다운로드 후 오프라인에서 열면 폰트/다이어그램이 기본 스타일로 보일 수 있음(인터넷 연결 시 정상 표시)
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: "loose",
+    theme: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default",
+  });
+</script>
+</body>
+</html>
