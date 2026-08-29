@@ -8,17 +8,17 @@
 
   // 시연용 더미 데이터 (API 결과에 합쳐서 표시, status는 데모용으로 고정값 사용)
   const DUMMY_ANNOUNCEMENTS = [
-    { id: "dummy-1", title: "2학기 방과후학교 강사 모집", deadline: "2026-09-05", target_group: null, status: "임박" },
+    { id: "dummy-1", title: "2학기 방과후학교 강사 모집", deadline: "2026-08-31", target_group: null, status: "임박" },
     { id: "dummy-2", title: "1학년 학부모 상담 주간 시작", deadline: "2026-09-08", target_group: null, status: "진행중" },
-    { id: "dummy-3", title: "중간고사 일정 확정 및 공지", deadline: "2026-09-12", target_group: null, status: "예정" },
-    { id: "dummy-4", title: "수련활동 동의서 제출 마감", deadline: "2026-09-12", target_group: null, status: "임박" },
+    { id: "dummy-3", title: "중간고사 일정 확정 및 공지", deadline: "2026-09-03", target_group: null, status: "예정" },
+    { id: "dummy-4", title: "수련활동 동의서 제출 마감", deadline: "2026-09-03", target_group: null, status: "임박" },
   ];
 
   const DUMMY_PERSONAL_EVENTS = [
-    { id: "dummy-p1", title: "교과협의회 준비자료 출력", date: "2026-09-05", memo: "3교시 전까지 완료" },
-    { id: "dummy-p2", title: "진로상담 학생 면담 일정 확인", date: "2026-09-05", memo: "5, 6교시 예약" },
-    { id: "dummy-p3", title: "담임 학급 좌석 배치 변경", date: "2026-09-12", memo: "학기 초 규정 참고" },
-    { id: "dummy-p4", title: "학교생활기록부 초안 검토", date: "2026-09-12", memo: "교무부장 검토 전 제출 필요" },
+    { id: "dummy-p1", title: "교과협의회 준비자료 출력", date: "2026-08-31", memo: "3교시 전까지 완료" },
+    { id: "dummy-p2", title: "진로상담 학생 면담 일정 확인", date: "2026-08-31", memo: "5, 6교시 예약" },
+    { id: "dummy-p3", title: "담임 학급 좌석 배치 변경", date: "2026-09-03", memo: "학기 초 규정 참고" },
+    { id: "dummy-p4", title: "학교생활기록부 초안 검토", date: "2026-09-03", memo: "교무부장 검토 전 제출 필요" },
   ];
 
   const rangeEl = document.getElementById("calendar-range");
