@@ -824,8 +824,8 @@ def get_submissions():
     conn = get_connection()
     rows = conn.execute(
         """
-        SELECT c.id, c.event_id, e.title AS event_title, c.user_id, u.name AS user_name,
-               c.is_completed, c.completed_at
+        SELECT c.id, c.event_id, e.title AS event_title, e.start_at AS event_deadline,
+               c.user_id, u.name AS user_name, c.is_completed, c.completed_at
         FROM Completion c
         JOIN Event e ON e.id = c.event_id
         JOIN User u ON u.id = c.user_id
@@ -834,3 +834,85 @@ def get_submissions():
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+class SubmissionStatusUpdate(BaseModel):
+    is_completed: bool
+
+
+# 제출현황 표에서 교사를 클릭해 제출/미제출을 직접 토글 (담당: hbn2814)
+@app.patch("/submissions/{completion_id}")
+def update_submission_status(completion_id: int, payload: SubmissionStatusUpdate):
+    conn = get_connection()
+    existing = conn.execute("SELECT id FROM Completion WHERE id = ?", (completion_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="제출 현황을 찾을 수 없습니다.")
+
+    if payload.is_completed:
+        conn.execute(
+            "UPDATE Completion SET is_completed = 1, completed_at = datetime('now'), "
+            "updated_at = datetime('now') WHERE id = ?",
+            (completion_id,),
+        )
+    else:
+        conn.execute(
+            "UPDATE Completion SET is_completed = 0, completed_at = NULL, "
+            "updated_at = datetime('now') WHERE id = ?",
+            (completion_id,),
+        )
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, event_id, user_id, is_completed, completed_at FROM Completion WHERE id = ?",
+        (completion_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row)
+
+
+class SubmissionRemind(BaseModel):
+    event_id: int
+    author_id: int
+
+
+# 미제출 교사 전원에게 안내 공지를 일괄 생성해서 보낸다 (담당: hbn2814)
+@app.post("/submissions/remind", status_code=201)
+def remind_incomplete_submissions(payload: SubmissionRemind):
+    conn = get_connection()
+    event = conn.execute(
+        "SELECT id, title, start_at FROM Event WHERE id = ?", (payload.event_id,)
+    ).fetchone()
+    if event is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="일정을 찾을 수 없습니다.")
+
+    incomplete = conn.execute(
+        "SELECT user_id FROM Completion WHERE event_id = ? AND is_completed = 0",
+        (payload.event_id,),
+    ).fetchall()
+    user_ids = [r["user_id"] for r in incomplete]
+    if not user_ids:
+        conn.close()
+        raise HTTPException(status_code=400, detail="미제출자가 없습니다.")
+
+    deadline = (event["start_at"] or "").split("T")[0].split(" ")[0] or None
+    title = f"[재안내] {event['title']}"
+    content = (
+        f"'{event['title']}' 아직 제출하지 않으셨습니다."
+        + (f" 제출 기한은 {deadline}입니다." if deadline else "")
+        + " 확인 후 제출 부탁드립니다."
+    )
+
+    cur = conn.execute(
+        "INSERT INTO Announcement (title, content, author_id, deadline) VALUES (?, ?, ?, ?)",
+        (title, content, payload.author_id, deadline),
+    )
+    new_id = cur.lastrowid
+    for user_id in user_ids:
+        conn.execute(
+            "INSERT OR IGNORE INTO Announcement_Recipient (announcement_id, user_id) VALUES (?, ?)",
+            (new_id, user_id),
+        )
+    conn.commit()
+    conn.close()
+    return {"announcement_id": new_id, "recipient_count": len(user_ids)}
