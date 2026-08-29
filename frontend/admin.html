@@ -1036,30 +1036,35 @@
     ];
 
     const FAKE_LOGIN_LOGS = [
-      // 관리자 계정(정교장)을 노린 것으로 보이는 무차별 대입 시도 - 60초 내 10회 실패 후 자동 차단(429)됨
-      { time: "2026-08-29 10:14:00", name: "정교장", result: "차단됨", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:59", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:57", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:55", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:53", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:51", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:49", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:47", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:45", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:43", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
-      { time: "2026-08-29 10:13:41", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      // 관리자 계정(정교장)을 노린 무차별 대입 시도 - 교내망 IP에서 발생, 60초 내 10회 실패 후 자동 차단(429)됨
+      { time: "2026-08-29 10:14:00", name: "정교장", result: "차단됨", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:59", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:57", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:55", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:53", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:51", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:49", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:47", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:45", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:43", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
+      { time: "2026-08-29 10:13:41", name: "정교장", result: "실패", ip: "172.30.1.47", suspicious: true },
       { time: "2026-08-29 08:41:12", name: "정교장", result: "성공", ip: "172.30.1.10" },
       { time: "2026-08-29 08:12:03", name: "방인배", result: "성공", ip: "172.30.1.24" },
       { time: "2026-08-29 07:58:41", name: "황병남", result: "실패", ip: "172.30.1.31" },
       { time: "2026-08-28 17:03:55", name: "강재원", result: "성공", ip: "172.30.1.18" },
       { time: "2026-08-28 09:20:07", name: "(알 수 없음)", result: "실패", ip: "121.128.44.7", remote: true },
+      // 정경원 선생님의 평소 접속 IP(172.30.1.15)와 다른, 처음 보는 IP에서의 로그인 - 승인 전까지 보류
+      { time: "2026-08-27 08:15:03", name: "정경원", result: "승인 필요", ip: "172.30.1.52" },
       { time: "2026-08-27 08:30:19", name: "정경원", result: "성공", ip: "172.30.1.15" },
     ];
 
     // 정상 접속(교내망 + 평소 쓰던 계정)은 기록에 남기지 않고, 아래처럼 벗어난 경우만 표시한다.
     const FAKE_VIEW_LOGS = [
       { time: "2026-08-29 08:20:07", viewer: "정교장", type: "제출현황 열람", ip: "121.128.44.7", remote: true, flag: "교외망 접속" },
-      { time: "2026-08-27 23:41:52", viewer: "황병남", type: "교사 명단 열람 (관리자 화면)", ip: "172.30.1.31", remote: false, flag: "평소 사용하지 않던 관리자 계정" },
+      // 평소 쓰지 않던 IP(172.30.1.52)로 로그인한 직후, 같은 세션에서 여러 화면을 연달아 열람한 사례
+      { time: "2026-08-27 08:15:20", viewer: "정경원", type: "공지사항 열람", ip: "172.30.1.52", remote: false, flag: "평소와 다른 IP에서 접속" },
+      { time: "2026-08-27 08:16:05", viewer: "정경원", type: "학사일정 열람", ip: "172.30.1.52", remote: false, flag: "평소와 다른 IP에서 접속" },
+      { time: "2026-08-27 08:17:40", viewer: "정경원", type: "제출현황 열람", ip: "172.30.1.52", remote: false, flag: "평소와 다른 IP에서 접속" },
     ];
 
     const FAKE_EXPORT_LOGS = [
@@ -1068,6 +1073,11 @@
 
     function ipCell(ip, remote) {
       return remote ? `<span class="ip-remote">${ip} (교외망)</span>` : ip;
+    }
+
+    // 교외망 여부와 무관하게 IP만 강조 표시 (예: 교내망에서 발생한 무차별 대입 시도)
+    function highlightIp(ip) {
+      return `<span class="ip-remote">${ip}</span>`;
     }
 
     function renderErrorLog() {
@@ -1093,8 +1103,8 @@
         (l) => `<tr>
           <td>${l.time}</td>
           <td>${l.name}</td>
-          <td><span class="log-badge ${l.result === "성공" ? "ok" : l.result === "차단됨" ? "blocked" : "fail"}">${l.result}</span></td>
-          <td>${ipCell(l.ip, l.remote)}</td>
+          <td><span class="log-badge ${l.result === "성공" ? "ok" : l.result === "차단됨" ? "blocked" : l.result === "승인 필요" ? "warn" : "fail"}">${l.result}</span></td>
+          <td>${l.suspicious ? highlightIp(l.ip) : ipCell(l.ip, l.remote)}</td>
         </tr>`
       ).join("");
     }
