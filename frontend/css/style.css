@@ -17,6 +17,17 @@
   --gray-light: #eef2ef;
 }
 
+/* ---------- 테마 색상 (설정 > 테마 색상에서 선택, localStorage에 저장) ---------- */
+html.theme-blue {
+  --mint: #a8c4dc; --mint-dark: #5f8fb3; --green-light: #b7d0e4; --green-lighter: #d8e8f3;
+}
+html.theme-lavender {
+  --mint: #c9b8dc; --mint-dark: #8f6fb3; --green-light: #d4c7e4; --green-lighter: #ece0f3;
+}
+html.theme-peach {
+  --mint: #dcc0a8; --mint-dark: #b3835f; --green-light: #e4c9b7; --green-lighter: #f3e4d8;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -1544,4 +1555,92 @@ button {
 @keyframes cw-pop-in {
   0%   { transform: scale(0.88); opacity: 0; }
   100% { transform: scale(1);    opacity: 1; }
+}
+
+/* ---------- 플로팅 설정 버튼 (담당: yamako8119-ai) ----------
+   alarm-corner-popup(좌측하단, bottom:24px)과 겹치지 않도록 그 위쪽에 배치 */
+.settings-fab {
+  position: fixed;
+  left: 24px;
+  bottom: 96px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--mint-dark);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(111, 179, 184, 0.4);
+  z-index: 950;
+  transition: transform 0.15s ease;
+}
+.settings-fab .material-symbols-outlined { font-size: 26px; }
+.settings-fab:hover  { transform: scale(1.08); }
+.settings-fab:active { transform: scale(0.94); }
+
+/* ---------- 설정 모달 ---------- */
+.settings-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.settings-menu-btn:hover { background: var(--bg-soft); }
+.settings-menu-btn .material-symbols-outlined { color: var(--mint-dark); }
+
+.settings-back-btn {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 14px;
+}
+.settings-back-btn:hover { color: var(--mint-dark); }
+
+.settings-panel-label { font-weight: 700; margin: 0 0 12px; }
+
+.settings-choice-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.settings-choice-btn {
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.settings-choice-btn.active { background: var(--mint-dark); color: #fff; border-color: var(--mint-dark); }
+
+.theme-swatch-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  background: var(--swatch);
+  cursor: pointer;
+}
+.theme-swatch-btn.active { border-color: var(--text); }
+
+.settings-form { display: flex; flex-direction: column; gap: 10px; }
+.settings-form input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.9rem;
 }
