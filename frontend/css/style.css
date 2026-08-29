@@ -429,24 +429,7 @@ button {
   border-radius: 999px;
 }
 
-/* ---------- Submission table ---------- */
-.submission-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.submission-table th {
-  background: var(--green-lighter);
-  color: #1f4d33;
-  padding: 10px;
-  text-align: left;
-}
-
-.submission-table td {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
-}
-
+/* ---------- Submission (탭 + 제출/미제출 구분, 담당: hbn2814) ---------- */
 .status-done {
   background: var(--green-light);
   color: #1f4d33;
@@ -463,6 +446,114 @@ button {
   font-size: 0.75rem;
   padding: 3px 10px;
   border-radius: 999px;
+}
+
+.submission-msg {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px 0;
+}
+
+.submission-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.submission-tab {
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.submission-tab:hover { background: var(--green-lighter); }
+.submission-tab.active { background: var(--green-light); color: #1f4d33; }
+
+.submission-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.submission-count {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+#submission-remind-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.submission-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.submission-col-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+}
+.submission-col-pending { color: var(--danger); border-color: var(--danger-light, var(--border)); }
+.submission-col-done    { color: var(--mint-dark); border-color: var(--mint); }
+
+.submission-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.submission-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--white);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+}
+.submission-row:hover { background: var(--bg-soft); }
+.submission-row:active { transform: scale(0.99); }
+
+.submission-name {
+  font-size: 0.88rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.submission-empty {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  padding: 10px 4px;
+  list-style: none;
+}
+
+@media (max-width: 640px) {
+  .submission-columns { grid-template-columns: 1fr; }
 }
 
 /* ---------- Today popup ---------- */
