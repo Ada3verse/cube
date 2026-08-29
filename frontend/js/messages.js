@@ -261,7 +261,7 @@
     if (!modal || !titleEl || !quoteEl || !confirmBtn) return;
 
     titleEl.textContent = `${currentUser.name} 선생님, 환영합니다.`;
-    quoteEl.textContent = pickMessage(new Date());
+    quoteEl.textContent = "오늘 시연 발표 파이팅하세요."; // 시연용 고정 문구
     modal.classList.remove("hidden");
 
     confirmBtn.addEventListener(

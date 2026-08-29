@@ -8,6 +8,7 @@
 
   // 시연용 더미 데이터 (API 결과에 합쳐서 표시, status는 데모용으로 고정값 사용)
   const DUMMY_ANNOUNCEMENTS = [
+    { id: "dummy-0", title: "해커톤 개발자 도전형 발표", deadline: "2026-08-29", target_group: null, status: "임박" },
     { id: "dummy-1", title: "2학기 방과후학교 강사 모집", deadline: "2026-08-31", target_group: null, status: "임박" },
     { id: "dummy-2", title: "1학년 학부모 상담 주간 시작", deadline: "2026-09-08", target_group: null, status: "진행중" },
     { id: "dummy-3", title: "중간고사 일정 확정 및 공지", deadline: "2026-09-03", target_group: null, status: "예정" },
