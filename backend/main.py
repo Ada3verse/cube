@@ -1,4 +1,5 @@
 import logging
+import secrets
 import shutil
 import time
 from collections import defaultdict
@@ -34,19 +35,41 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "서버 내부 오류가 발생했습니다."})
 
 
-# ---------- 요청자 신원 확인 (X-User-Id 헤더 기준, 로그인한 사용자의 DB 레코드로 검증) ----------
-# 이름(User.name)은 UNIQUE가 아니고 한글 등 비-ASCII 값이라 HTTP 헤더로 안전하게 못 옮기므로
-# 헤더에는 로그인 응답에 포함된 정수 id를 사용한다.
-def get_requester(x_user_id: int = Header(...)):
+# ---------- 요청자 신원 확인 (세션 토큰 기준) ----------
+# 로그인 시 발급한 불투명 토큰만으로 신원을 확인한다. 클라이언트가 임의로 값을 지어내는
+# X-User-Id 헤더 방식은 로그인 없이 남의 id를 자칭할 수 있어 폐기했다.
+# 서버 재시작 시 전체 세션이 초기화되는 건 알려진 제약(데모 범위 밖, 추후 DB/영속 저장으로 개선).
+_sessions: dict[str, int] = {}
+
+
+def _extract_token(authorization: Optional[str] = Header(default=None)) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="인증이 필요합니다.")
+    return authorization[len("Bearer "):]
+
+
+def get_requester(token: str = Depends(_extract_token)):
+    user_id = _sessions.get(token)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="인증이 필요합니다.")
+
     conn = get_connection()
-    user = get_user_by_id(conn, x_user_id)
+    user = get_user_by_id(conn, user_id)
     conn.close()
     if user is None:
         raise HTTPException(status_code=401, detail="인증이 필요합니다.")
     return user
 
 
-def require_admin(user=Depends(get_requester)):
+# admin.html이 사용하는 모든 기능은 서버 PC 자기 자신에서의 요청일 때만 허용한다
+# (물리적 접근을 신뢰 기준으로 삼음 - 관리자 계정이 털려도 원격에서는 관리 기능을 쓸 수 없게).
+LOCAL_HOSTS = {"127.0.0.1", "::1"}
+
+
+def require_admin(request: Request, user=Depends(get_requester)):
+    host = request.client.host if request.client else None
+    if host not in LOCAL_HOSTS:
+        raise HTTPException(status_code=403, detail="관리자 페이지는 서버 컴퓨터에서만 접근할 수 있습니다.")
     if not user["is_admin"]:
         raise HTTPException(status_code=403, detail="관리자만 접근할 수 있습니다.")
     return user
@@ -70,6 +93,11 @@ def check_login_rate_limit(ip: str):
 class LoginRequest(BaseModel):
     name: str
     password: str
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
 
 
 DEFAULT_PASSWORD = "123456"
@@ -191,13 +219,44 @@ def login(payload: LoginRequest, request: Request):
     if row is None or not verify_password(payload.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="이름 또는 비밀번호가 올바르지 않습니다.")
 
+    token = secrets.token_urlsafe(32)
+    _sessions[token] = row["id"]
+
     return {
         "id": row["id"],
         "name": row["name"],
         "is_admin": bool(row["is_admin"]),
         "department": row["department"],
         "subject": row["subject"],
+        "token": token,
     }
+
+
+@app.post("/logout")
+def logout(authorization: Optional[str] = Header(default=None)):
+    if authorization and authorization.startswith("Bearer "):
+        _sessions.pop(authorization[len("Bearer "):], None)
+    return {"ok": True}
+
+
+@app.patch("/me/password")
+def change_own_password(payload: PasswordChange, requester=Depends(get_requester)):
+    if len(payload.new_password) < 4:
+        raise HTTPException(status_code=400, detail="새 비밀번호는 4자 이상이어야 합니다.")
+
+    conn = get_connection()
+    row = conn.execute("SELECT password_hash FROM User WHERE id = ?", (requester["id"],)).fetchone()
+    if row is None or not verify_password(payload.current_password, row["password_hash"]):
+        conn.close()
+        raise HTTPException(status_code=401, detail="현재 비밀번호가 올바르지 않습니다.")
+
+    conn.execute(
+        "UPDATE User SET password_hash = ? WHERE id = ?",
+        (hash_password(payload.new_password), requester["id"]),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 # ---------- 교사 ----------

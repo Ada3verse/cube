@@ -235,4 +235,5 @@ export {
   calcDday,
   extractMentions,
   getCurrentUserId,
+  escapeHtml,
 };

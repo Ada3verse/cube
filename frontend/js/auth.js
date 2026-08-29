@@ -20,16 +20,18 @@ function clearCurrentUser() {
 }
 
 // 관리자 전용/본인 소유 확인이 필요한 API 호출 시 요청자 식별용 헤더.
-// 이름은 중복 가능 + 비-ASCII라 헤더로 못 옮기므로 로그인 응답의 정수 id를 사용한다.
+// 로그인 응답에 담긴 세션 토큰을 그대로 전달 - 서버가 토큰 -> 사용자로 신원을 검증한다.
 function authHeader() {
   const user = getCurrentUser();
-  return user ? { "X-User-Id": String(user.id) } : {};
+  return user && user.token ? { Authorization: `Bearer ${user.token}` } : {};
 }
 
 function showApp(user) {
   document.getElementById("login-screen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
   document.getElementById("current-user-name").textContent = `${user.name}님`;
+  const adminLink = document.getElementById("settings-admin-link");
+  if (adminLink) adminLink.classList.toggle("hidden", !user.is_admin);
   if (typeof showGreetingPopup === "function") showGreetingPopup(user);
   if (typeof runSmartAlarm === "function") runSmartAlarm(user);
 }
@@ -79,7 +81,12 @@ function initAuth() {
     }
   });
 
-  document.getElementById("logout-btn").addEventListener("click", () => {
+  document.getElementById("logout-btn").addEventListener("click", async () => {
+    try {
+      await fetch(`${API_BASE}/logout`, { method: "POST", headers: authHeader() });
+    } catch {
+      // 서버 무효화 실패해도 클라이언트 세션은 항상 정리한다
+    }
     clearCurrentUser();
     showLogin();
   });
