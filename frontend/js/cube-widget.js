@@ -799,4 +799,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cw-list-complete-btn').addEventListener('click', markComplete);
 
   watchLoginState();
+
+  // 시연용 polling: 5초마다 새 공지 여부 확인 (실시간 push 없이 근사치로 배지 갱신)
+  setInterval(async () => {
+    try {
+      await fetchNotices();
+    } catch (err) {
+      console.error(err);
+    }
+    updateBadge();
+  }, 5000);
 });
