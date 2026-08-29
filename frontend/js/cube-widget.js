@@ -11,6 +11,7 @@ import {
   completeNotice,
   calcDday,
   getCurrentUserId,
+  escapeHtml,
 } from './notice.js';
 
 // ── State ──────────────────────────────────────────────
@@ -249,7 +250,7 @@ function renderAlerts() {
       <li class="cw-alert-item cw-urg-${urg}" data-id="${n.id}">
         <span class="cw-dday-chip cw-urg-${urg}">${dd}</span>
         <div class="cw-item-body">
-          <div class="cw-item-title">${n.title}</div>
+          <div class="cw-item-title">${escapeHtml(n.title)}</div>
         </div>
       </li>`;
   }).join('');
@@ -321,7 +322,7 @@ function renderAll() {
       <li class="cw-list-item ${n.completed ? 'cw-item-done' : ''}" data-id="${n.id}">
         ${dd ? `<span class="cw-dday-chip cw-urg-${urg}">${dd}</span>` : ''}
         <div class="cw-item-body">
-          <div class="cw-item-title">${n.title}</div>
+          <div class="cw-item-title">${escapeHtml(n.title)}</div>
         </div>
         ${n.completed ? '<span class="cw-done-badge">완료</span>' : ''}
       </li>`;
@@ -390,7 +391,7 @@ function renderChips() {
   const c = document.getElementById('cw-chips');
   if (!c) return;
   c.innerHTML = selectedRecipients.map(r => {
-    const label = r.type === 'group' ? `#${r.name}` : `@${r.name}`;
+    const label = r.type === 'group' ? `#${escapeHtml(r.name)}` : `@${escapeHtml(r.name)}`;
     return `<span class="cw-chip cw-chip-${r.type}">${label}
        <button type="button" class="cw-chip-del" data-type="${r.type}" data-id="${r.id}">×</button>
      </span>`;
@@ -434,8 +435,8 @@ function renderMentionDropdown() {
   dd.innerHTML = mentionMatches.map((m, i) => `
     <li class="cw-mention-opt ${i === mentionHighlight ? 'cw-mention-hl' : ''}" data-index="${i}">
       <span class="cw-mention-icon">${m.type === 'group' ? '👥' : '👤'}</span>
-      <span class="cw-mention-name">${m.name}</span>
-      <span class="cw-mention-sub">${m.sub}</span>
+      <span class="cw-mention-name">${escapeHtml(m.name)}</span>
+      <span class="cw-mention-sub">${escapeHtml(m.sub)}</span>
     </li>`).join('');
 
   dd.querySelectorAll('.cw-mention-opt').forEach(li => {
@@ -509,8 +510,8 @@ function teacherChecklistHTML(idPrefix, preselectedIds = new Set()) {
   return `<div class="cw-checklist">${directory.teachers.map(t => `
     <label class="cw-check-row">
       <input type="checkbox" data-type="user" data-id="${t.id}" id="${idPrefix}-u-${t.id}" ${preselectedIds.has(t.id) ? 'checked' : ''} />
-      <span>${t.name}</span>
-      <span class="cw-check-sub">${t.department || ''}</span>
+      <span>${escapeHtml(t.name)}</span>
+      <span class="cw-check-sub">${escapeHtml(t.department || '')}</span>
     </label>`).join('')}</div>`;
 }
 
@@ -519,7 +520,7 @@ function groupChecklistHTML(idPrefix, groups, preselectedIds = new Set()) {
   return `<div class="cw-checklist">${groups.map(g => `
     <label class="cw-check-row">
       <input type="checkbox" data-type="group" data-id="${g.id}" id="${idPrefix}-g-${g.id}" ${preselectedIds.has(g.id) ? 'checked' : ''} />
-      <span>#${g.name}</span>
+      <span>#${escapeHtml(g.name)}</span>
       <span class="cw-check-sub">${g.member_count || 0}명</span>
     </label>`).join('')}</div>`;
 }

@@ -72,6 +72,24 @@
     .disk-bar-track { flex: 1; height: 10px; background: var(--bg-soft); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
     .disk-bar-fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
     .admin-msg { font-size: 0.85rem; color: var(--danger); min-height: 1.2em; }
+    .nav-divider { height: 1px; background: var(--border); margin: 10px 16px; }
+    .subtab-group { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .subtab-btn { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--white); font-size: 0.82rem; cursor: pointer; color: var(--text-muted); }
+    .subtab-btn.active { background: var(--mint-dark); color: #fff; border-color: var(--mint-dark); }
+    .csv-export-btn { margin-left: auto; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--white); font-size: 0.8rem; cursor: pointer; color: #1a7f37; font-weight: 700; }
+    .csv-export-btn:hover { background: var(--bg-soft); }
+    .log-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+    .log-badge.ok { background: var(--green-light); color: #1f4d33; }
+    .log-badge.fail { background: #fdecea; color: #b71c1c; }
+    .log-badge.warn { background: #fff3cd; color: #8a6100; }
+    .log-badge.blocked { background: #ede9fe; color: #5b21b6; }
+    .ip-remote { color: #b71c1c; font-weight: 700; }
+    .log-viewer { background: #1e1e2e; color: #d4d4dc; font-family: "Consolas", "Menlo", monospace; font-size: 0.78rem; line-height: 1.8; padding: 14px 16px; border-radius: 10px; height: 340px; overflow-y: auto; white-space: pre-wrap; }
+    .log-line-error { color: #f28b82; }
+    .log-line-warn { color: #fbbc78; }
+    .backup-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 20px; max-width: 480px; }
+    .backup-card-title { font-weight: 700; margin-bottom: 6px; }
+    .backup-card-desc { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px; }
   </style>
 </head>
 <body>
@@ -91,6 +109,10 @@
       <button class="admin-nav-btn active" data-view="users">사용자 등록</button>
       <button class="admin-nav-btn" data-view="schedule">학사일정</button>
       <button class="admin-nav-btn" data-view="groups">그룹 관리</button>
+      <div class="nav-divider"></div>
+      <button class="admin-nav-btn" data-view="logs">로그</button>
+      <button class="admin-nav-btn" data-view="access">접속기록</button>
+      <button class="admin-nav-btn" data-view="export">데이터 추출</button>
     </aside>
 
     <div class="admin-content">
@@ -201,6 +223,79 @@
         </table>
       </section>
 
+      <!-- ── 로그 (다음 단계 방향성 시연용 - 실제 수집/보관은 아직 구현 전) ── -->
+      <section id="view-logs" class="admin-view">
+        <div class="section-header"><h2>로그</h2></div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-top:-8px;">서버/화면에서 발생한 에러와 서버 프로세스 로그를 확인합니다. (최대 30일 보유 예정)</p>
+        <div class="subtab-group">
+          <button class="subtab-btn active" data-logtab="error" onclick="showLogTab('error')">에러 로그</button>
+          <button class="subtab-btn" data-logtab="server" onclick="showLogTab('server')">서버 로그</button>
+          <button class="csv-export-btn" onclick="exportErrorLogCsv()">CSV 내보내기</button>
+        </div>
+
+        <div id="log-panel-error">
+          <table class="admin-table">
+            <thead><tr><th>발생 시각</th><th>구분</th><th>메시지</th><th>화면</th></tr></thead>
+            <tbody id="error-log-body"></tbody>
+          </table>
+        </div>
+
+        <div id="log-panel-server" style="display:none;">
+          <div class="log-viewer" id="server-log-viewer"></div>
+        </div>
+      </section>
+
+      <!-- ── 접속기록 (다음 단계 방향성 시연용) ── -->
+      <section id="view-access" class="admin-view">
+        <div class="section-header"><h2>접속기록</h2></div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-top:-8px;">비인가 로그인 시도가 있었는지, 교내망이 아닌 외부에서 접근한 적이 있는지 확인하는 용도입니다.</p>
+        <div class="subtab-group">
+          <button class="subtab-btn active" data-acctab="login" onclick="showAccessTab('login')">로그인 시도</button>
+          <button class="subtab-btn" data-acctab="view" onclick="showAccessTab('view')">공지/일정 열람 기록</button>
+          <button class="subtab-btn" data-acctab="export" onclick="showAccessTab('export')">데이터 추출 기록</button>
+        </div>
+
+        <div id="access-panel-login">
+          <div class="subtab-group"><button class="csv-export-btn" onclick="exportLoginLogCsv()">CSV 내보내기</button></div>
+          <table class="admin-table">
+            <thead><tr><th>시각</th><th>계정명</th><th>결과</th><th>IP</th></tr></thead>
+            <tbody id="login-log-body"></tbody>
+          </table>
+        </div>
+        <div id="access-panel-view" style="display:none;">
+          <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 10px;">평소와 다른 접속(교외망 IP, 평소 쓰지 않던 관리자 계정 등)만 표시됩니다 - 정상적인 열람까지 모두 기록하면 개인정보 열람 이력이 과도하게 쌓이기 때문입니다.</p>
+          <div class="subtab-group"><button class="csv-export-btn" onclick="exportViewLogCsv()">CSV 내보내기</button></div>
+          <table class="admin-table">
+            <thead><tr><th>시각</th><th>열람자</th><th>유형</th><th>IP</th><th>플래그 사유</th></tr></thead>
+            <tbody id="view-log-body"></tbody>
+          </table>
+        </div>
+        <div id="access-panel-export" style="display:none;">
+          <div class="subtab-group"><button class="csv-export-btn" onclick="exportExportLogCsv()">CSV 내보내기</button></div>
+          <table class="admin-table">
+            <thead><tr><th>시각</th><th>실행한 관리자</th><th>IP</th></tr></thead>
+            <tbody id="export-log-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 데이터 추출 (다음 단계 방향성 시연용) ── -->
+      <section id="view-export" class="admin-view">
+        <div class="section-header"><h2>데이터 추출</h2></div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-top:-8px;">서버 PC를 교체할 때 전체 데이터를 파일 하나로 내보내서 새 PC에서 그대로 불러올 수 있게 하는 기능입니다. 서버 PC 자기 자신에서의 요청 + 관리자 재인증이 모두 필요합니다.</p>
+        <div class="backup-card">
+          <div class="backup-card-title">전체 데이터 내보내기</div>
+          <div class="backup-card-desc">교사 계정, 공지, 일정, 그룹, 첨부파일을 포함한 전체 백업을 zip으로 내려받습니다.</div>
+          <button class="btn btn-primary" onclick="mockExportBackup()">전체 데이터 내보내기</button>
+          <div id="export-action-msg" class="admin-msg" style="margin-top:10px;"></div>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin:20px 0 6px;">최근 실행 이력</p>
+        <table class="admin-table">
+          <thead><tr><th>시각</th><th>실행한 관리자</th><th>결과</th></tr></thead>
+          <tbody id="backup-history-body"></tbody>
+        </table>
+      </section>
+
     </div>
   </div>
 
@@ -218,9 +313,28 @@
   <script>
     const API_BASE = "http://127.0.0.1:8000";
 
-    // TODO: 로그인/관리자 권한 가드는 나중에 다시 켜기 (지금은 테스트 편의상 비활성화)
+    // 관리자 권한 가드: 로그인 안 됐거나 관리자가 아니면 즉시 메인 화면으로 돌려보낸다.
+    // (실제 접근 제한은 서버의 require_admin이 강제 - 세션 토큰 검증 + 서버 PC 자기 자신에서의
+    // 요청인지 확인. 이 화면의 가드는 그 전에 잘못 들어온 사용자를 빨리 내보내는 UX용 1차 방어.)
     const CURRENT_USER = JSON.parse(localStorage.getItem("cube_user") || "null");
-    const CURRENT_ADMIN_ID = CURRENT_USER?.id ?? 1;
+    if (!CURRENT_USER || !CURRENT_USER.is_admin) {
+      location.href = "index.html";
+      throw new Error("관리자 권한이 필요합니다.");
+    }
+    const CURRENT_ADMIN_ID = CURRENT_USER.id;
+
+    // 이 페이지의 모든 API 호출에 세션 토큰을 자동으로 실어 보낸다 (호출부를 일일이 고치지 않기 위한 래핑).
+    function authHeader() {
+      return CURRENT_USER.token ? { Authorization: `Bearer ${CURRENT_USER.token}` } : {};
+    }
+    const _rawFetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.startsWith(API_BASE)) {
+        init = { ...init, headers: { ...(init.headers || {}), ...authHeader() } };
+      }
+      return _rawFetch(input, init);
+    };
 
     // ── 네비게이션 전환 ──
     document.querySelectorAll(".admin-nav-btn").forEach((btn) => {
@@ -893,12 +1007,179 @@
       }
     }
 
+    // ────────────────────────────────────────────────────────────────
+    // 로그 / 접속기록 / 데이터추출 — 다음 단계 방향성을 보여주기 위한 데모 화면.
+    // 실제 수집·저장 로직은 아직 없고, 화면에 보이는 표는 전부 가상 데이터다.
+    // (참고: 이음 메신저 admin.html의 접속기록/로그/데이터추출 구조를 그대로 옮겨온 것)
+    // ────────────────────────────────────────────────────────────────
+
+    const FAKE_ERROR_LOGS = [
+      { time: "2026-08-29 10:14:00", level: "WARN", message: "POST /login - 172.30.1.47에서 60초 내 10회 이상 로그인 시도 감지, 자동 차단(429)", page: "로그인" },
+      { time: "2026-08-29 09:41:19", level: "ERROR", message: "POST /notices - 400 Bad Request: 존재하지 않는 작성자입니다.", page: "공지등록" },
+      { time: "2026-08-29 09:15:02", level: "WARN", message: "GET /submissions - 응답 지연 (912ms)", page: "제출현황" },
+      { time: "2026-08-28 16:03:41", level: "ERROR", message: "TypeError: Cannot read properties of null (reading 'id')", page: "캘린더" },
+      { time: "2026-08-27 11:22:08", level: "WARN", message: "POST /login - 172.30.1.31에서 짧은 시간 내 반복 로그인 실패", page: "로그인" },
+    ];
+
+    const FAKE_SERVER_LOG_LINES = [
+      "[2026-08-29 08:00:01] INFO  서버 시작 - CUBE API v0.1",
+      "[2026-08-29 08:00:01] INFO  SQLite 연결 완료 (database.db)",
+      "[2026-08-29 08:41:12] INFO  POST /login - 정교장 로그인 성공",
+      "[2026-08-29 08:52:30] WARN  POST /login - 172.30.1.31 인증 실패 (황병남)",
+      "[2026-08-29 09:10:44] INFO  GET /teachers - 200 OK (18ms)",
+      "[2026-08-29 09:15:02] ERROR POST /notices - 400 Bad Request: 존재하지 않는 작성자입니다.",
+      "[2026-08-29 09:20:07] WARN  POST /login - 121.128.44.7 인증 실패 (알 수 없는 계정)",
+      "[2026-08-29 09:41:19] INFO  PATCH /teachers/12/admin - 200 OK (관리자 권한 부여: 강재원)",
+      "[2026-08-29 10:13:41] WARN  POST /login - 172.30.1.47 인증 실패 (정교장)",
+      "[2026-08-29 10:13:59] WARN  POST /login - 172.30.1.47 인증 실패 (정교장) - 10회째",
+      "[2026-08-29 10:14:00] WARN  POST /login - 172.30.1.47 rate limit 초과 - 429 차단",
+    ];
+
+    const FAKE_LOGIN_LOGS = [
+      // 관리자 계정(정교장)을 노린 것으로 보이는 무차별 대입 시도 - 60초 내 10회 실패 후 자동 차단(429)됨
+      { time: "2026-08-29 10:14:00", name: "정교장", result: "차단됨", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:59", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:57", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:55", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:53", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:51", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:49", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:47", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:45", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:43", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 10:13:41", name: "정교장", result: "실패", ip: "172.30.1.47", remote: true },
+      { time: "2026-08-29 08:41:12", name: "정교장", result: "성공", ip: "172.30.1.10" },
+      { time: "2026-08-29 08:12:03", name: "방인배", result: "성공", ip: "172.30.1.24" },
+      { time: "2026-08-29 07:58:41", name: "황병남", result: "실패", ip: "172.30.1.31" },
+      { time: "2026-08-28 17:03:55", name: "강재원", result: "성공", ip: "172.30.1.18" },
+      { time: "2026-08-28 09:20:07", name: "(알 수 없음)", result: "실패", ip: "121.128.44.7", remote: true },
+      { time: "2026-08-27 08:30:19", name: "정경원", result: "성공", ip: "172.30.1.15" },
+    ];
+
+    // 정상 접속(교내망 + 평소 쓰던 계정)은 기록에 남기지 않고, 아래처럼 벗어난 경우만 표시한다.
+    const FAKE_VIEW_LOGS = [
+      { time: "2026-08-29 08:20:07", viewer: "정교장", type: "제출현황 열람", ip: "121.128.44.7", remote: true, flag: "교외망 접속" },
+      { time: "2026-08-27 23:41:52", viewer: "황병남", type: "교사 명단 열람 (관리자 화면)", ip: "172.30.1.31", remote: false, flag: "평소 사용하지 않던 관리자 계정" },
+    ];
+
+    const FAKE_EXPORT_LOGS = [
+      { time: "2026-08-20 18:02:00", admin: "정교장", ip: "127.0.0.1" },
+    ];
+
+    function ipCell(ip, remote) {
+      return remote ? `<span class="ip-remote">${ip} (교외망)</span>` : ip;
+    }
+
+    function renderErrorLog() {
+      document.getElementById("error-log-body").innerHTML = FAKE_ERROR_LOGS.map(
+        (l) => `<tr>
+          <td>${l.time}</td>
+          <td><span class="log-badge ${l.level === "ERROR" ? "fail" : "warn"}">${l.level}</span></td>
+          <td style="text-align:left;">${l.message}</td>
+          <td>${l.page}</td>
+        </tr>`
+      ).join("");
+    }
+
+    function renderServerLogViewer() {
+      document.getElementById("server-log-viewer").innerHTML = FAKE_SERVER_LOG_LINES.map((line) => {
+        const cls = line.includes("ERROR") ? "log-line-error" : line.includes("WARN") ? "log-line-warn" : "";
+        return `<div class="${cls}">${line}</div>`;
+      }).join("");
+    }
+
+    function renderLoginLog() {
+      document.getElementById("login-log-body").innerHTML = FAKE_LOGIN_LOGS.map(
+        (l) => `<tr>
+          <td>${l.time}</td>
+          <td>${l.name}</td>
+          <td><span class="log-badge ${l.result === "성공" ? "ok" : l.result === "차단됨" ? "blocked" : "fail"}">${l.result}</span></td>
+          <td>${ipCell(l.ip, l.remote)}</td>
+        </tr>`
+      ).join("");
+    }
+
+    function renderViewLog() {
+      document.getElementById("view-log-body").innerHTML = FAKE_VIEW_LOGS.map(
+        (l) => `<tr><td>${l.time}</td><td>${l.viewer}</td><td>${l.type}</td><td>${ipCell(l.ip, l.remote)}</td><td><span class="log-badge fail">${l.flag}</span></td></tr>`
+      ).join("");
+    }
+
+    function renderExportLog() {
+      document.getElementById("export-log-body").innerHTML = FAKE_EXPORT_LOGS.map(
+        (l) => `<tr><td>${l.time}</td><td>${l.admin}</td><td>${l.ip}</td></tr>`
+      ).join("");
+      document.getElementById("backup-history-body").innerHTML = FAKE_EXPORT_LOGS.map(
+        (l) => `<tr><td>${l.time}</td><td>${l.admin}</td><td><span class="log-badge ok">성공</span></td></tr>`
+      ).join("") || `<tr><td colspan="3" style="color:var(--text-muted);">최근 내보내기 이력이 없습니다.</td></tr>`;
+    }
+
+    function renderAdminDemoPanels() {
+      renderErrorLog();
+      renderServerLogViewer();
+      renderLoginLog();
+      renderViewLog();
+      renderExportLog();
+    }
+
+    function showLogTab(tab) {
+      document.querySelectorAll("#view-logs .subtab-btn").forEach((b) => b.classList.toggle("active", b.dataset.logtab === tab));
+      document.getElementById("log-panel-error").style.display = tab === "error" ? "" : "none";
+      document.getElementById("log-panel-server").style.display = tab === "server" ? "" : "none";
+    }
+
+    function showAccessTab(tab) {
+      document.querySelectorAll("#view-access .subtab-btn").forEach((b) => b.classList.toggle("active", b.dataset.acctab === tab));
+      document.getElementById("access-panel-login").style.display = tab === "login" ? "" : "none";
+      document.getElementById("access-panel-view").style.display = tab === "view" ? "" : "none";
+      document.getElementById("access-panel-export").style.display = tab === "export" ? "" : "none";
+    }
+
+    // 현재 화면에 보이는 표를 실제 CSV 파일로 내려받는다 (표시된 데이터를 그대로 내보낼 뿐, 서버 저장소는 없음)
+    function downloadCsv(filename, headerRow, rows) {
+      const escape = (v) => `"${String(v).replaceAll('"', '""')}"`;
+      const csv = [headerRow, ...rows].map((r) => r.map(escape).join(",")).join("\r\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportErrorLogCsv() {
+      downloadCsv("error_logs.csv", ["발생시각", "구분", "메시지", "화면"],
+        FAKE_ERROR_LOGS.map((l) => [l.time, l.level, l.message, l.page]));
+    }
+    function exportLoginLogCsv() {
+      downloadCsv("login_attempts.csv", ["시각", "계정명", "결과", "IP"],
+        FAKE_LOGIN_LOGS.map((l) => [l.time, l.name, l.result, l.ip]));
+    }
+    function exportViewLogCsv() {
+      downloadCsv("access_logs.csv", ["시각", "열람자", "유형", "IP", "플래그 사유"],
+        FAKE_VIEW_LOGS.map((l) => [l.time, l.viewer, l.type, l.ip, l.flag]));
+    }
+    function exportExportLogCsv() {
+      downloadCsv("data_exports.csv", ["시각", "실행한 관리자", "IP"],
+        FAKE_EXPORT_LOGS.map((l) => [l.time, l.admin, l.ip]));
+    }
+
+    // 실제 백업 파일 생성은 아직 구현 전 - 버튼과 화면 흐름만 먼저 만들어 둔 상태.
+    function mockExportBackup() {
+      document.getElementById("export-action-msg").style.color = "var(--text-muted)";
+      document.getElementById("export-action-msg").textContent = "데모 버전에서는 비활성화되어 있습니다 (다음 단계 구현 예정).";
+    }
+
     loadTeachers();
     loadSchedule();
     loadNotices();
     loadTrash();
     loadGroups();
     loadServerStatus();
+    renderAdminDemoPanels();
     setInterval(loadServerStatus, 5000);
   </script>
 
